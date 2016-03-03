@@ -1,0 +1,23 @@
+---
+title: "A way to model stochastic orders"
+author: "Lei Sun"
+output: html_document
+---
+
+Suppose we have two groups of observations, denoted as Group 0 $=\left\{(\hat\beta_{01},\hat s_{01}),\ldots,(\hat\beta_{0m},\hat s_{0m})\right\}$ and Group 1 $=\left\{(\hat\beta_{11},\hat s_{11}),\ldots,(\hat\beta_{1n},\hat s_{1n})\right\}$.  We assume that $\hat\beta_{ij}|\hat s_{ij}\sim N(\beta_{ij},\hat s_{ij})$, $\beta_{ij}\sim f_i$, $i=0, 1$, and one of our goals is to investigate the difference between $f_0$ and $f_1$.
+
+Now to simplify the situation, we further assume that both $f_0$ and $f_1$ are symmetric, unimodal at $0$, and can be sufficiently approximated by a mixture of zero-centered normals.  We also assume that either $f_0=f_1$ or $f_0$ and $f_1$ have monotone likelihood ratio; that is, $f_0(|x|)/f_1(|x|)$ is decreasing with respect to $|x|$ increasing.
+
+### The most simplistic idea
+
+To make the problem both simple enough so as to be tractable and flexible enough so as to be realistic, we suppose $f_0=\sum\limits_{k=1}^K \pi_k N(0,\sigma_k^2)$, where $K$ and $0\leq\sigma_1<\ldots<\sigma_K$, $\sigma_1=0$ or not depending our assumption, can be preset or easily obtained from the data as in ASH.  Then we write $f_1=\sum\limits_{k=1}^K \pi_k N(0,\sigma_k^2+\sigma^2)$.  In this sense, we have $f_0$ and $f_1$ monotonic in likelihood ratio except when $\sigma^2=0$, in which case we have $f_0=f_1$.  Then in order to estimate $f_0$ and $f_1$ we maximize, in terms of $\pi_k$'s and $\sigma$, the marginal likelihood of the complete data $\sum\limits_{j=1}^m\log(\sum\limits_{k=1}^K \pi_k p_{0kj})+\sum\limits_{j=1}^n\log(\sum\limits_{k=1}^K \pi_k  p_{1kj})$, where $p_{0kj}=\phi(\hat\beta_{0j};0,\sigma_k^2+\hat s_{0j}^2)$, $p_{1kj}=\phi(\hat\beta_{1j};0,\sigma_k^2+\sigma^2+\hat s_{1j}^2)$, $\phi$ being pdf of normal.  This constraint of this maximization problem is that all $\pi_k$'s are nonnegative and summed up to $1$.
+
+### An equivalent view
+
+To view it in another way, we are essentially modeling $\hat\beta_{1j}=\beta_{1j}'+b_{1j}+\hat s_{1j}$, where $\beta_{1j}'$ and $\beta_{0j}$ are exchangeable under $f_0$, and $b_{1j}$ is a normal turbulence to make the distribution of $\beta_{1j}=\beta_{1j}'+b_{1j}$ more dispersed than that of $\beta_{0j}$.  In this sense, to investigate if $f_0=f_1$ is to investigate the difference between $\hat\sigma$ and $0$.
+
+### An extension
+
+Extending the above view, instead of assuming $b_{1j}$ a normal turbulence, we suppose $b_{1j} \sim \rho_0\delta+\sum\limits_{l=1}^L\rho_l N(0,\gamma_l^2)$.  Here $L$ and the grid of $\gamma_l$'s can be preset according to similar rule of thumb of ASH.  Now we need to choose $\pi_k$, $\rho_l$ to maximize the marginal likelihood of the complete data $\sum\limits_{j=1}^m\log(\sum\limits_{k=1}^K \pi_k p_{0kj})+\sum\limits_{j=1}^n\log(\sum\limits_{k=1}^K\sum\limits_{l=0}^L \pi_k\rho_l p_{1klj})$, where $p_{0kj}=\phi(\hat\beta_{0j};0,\sigma_k^2+\hat s_{0j}^2)$, $p_{1klj}=\phi(\hat\beta_{1j};0,\sigma_k^2+\gamma_l^2+\hat s_{1j}^2)$, $\gamma_0=0$.  This constraint of this maximization problem is that all $\pi_k$'s, $\rho_l$'s are nonnegative and both of them summed up to $1$.  In this sense, to investigate if $f_0=f_1$ is to investigate the difference between $\hat\rho_0$ and $1$.
+
+### To be continued

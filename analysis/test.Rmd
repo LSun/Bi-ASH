@@ -1,0 +1,57 @@
+---
+title: "Bi-ASH revised"
+author: "Lei Sun"
+date: "March 3, 2016"
+output: html_document
+---
+
+Our Bi-ASH algorithm fails to converge 60\% of the time under previous setting.  As advised by Matthew, we are revising the algorithm in two ways.
+
+#Simulation#
+
+As original.
+
+#Larger maxiter#
+
+We revise in the function *bimixEM* (modified based on ASH's *mixEM*) *maxiter=50000* instead of *5000* and keep everything else the same.  Note that we don't use 0 in grids and therefore don't use penalty term.
+
+```{r echo=FALSE}
+Delta.moreiter=scan("../output/LLRT.moreiter.txt")
+conv.moreiter=scan("../output/conv.moreiter.txt")
+conv.rate.moreiter=sum(conv.moreiter)/length(conv.moreiter)
+Delta.moreiter=Delta.moreiter[conv.moreiter==1]
+d.moreiter=mean(Delta.moreiter)
+x=seq(0,max(Delta.moreiter)+1,length=1000)
+par(mfrow=c(1,2))
+hist(Delta.moreiter,prob=TRUE,xlab=expression(Delta),main="")
+lines(x,dchisq(x,d.moreiter),lty=3,col="blue")
+itertime.moreiter=scan("../output/itertime.moreiter.txt")
+boxplot(itertime.moreiter,ylab="convergence time in seconds")
+averitertime.moreiter=mean(itertime.moreiter)
+options(digits=0)
+```
+
+It turns out with the same simulated data, the algorithm converges `r conv.rate.moreiter*100`\% of the time, although slowly.  The average convergen time is `r averitertime.moreiter` seconds.  The resulting log-likelihood ratio test statistic $\Delta$ is approximately $\chi^2$ distributed, implying that our algorithm converges to some sort of MLE although it usually takes a long time.
+
+#Adding penalty term#
+
+We add 0 in both grids $\sigma_{1:K}^\alpha$ and $\sigma_{1:L}^\gamma$, with $\sigma_1^\alpha=\sigma_1^\gamma=0$, put a penalty term of $\lambda_1^\alpha=\lambda_1^\gamma=10$, with all others $=1$, and keep *maxiter=5000* unchanged.
+
+```{r echo=FALSE}
+Delta.pen=scan("../output/LLRT.pen.txt")
+conv.pen=scan("../output/conv.pen.txt")
+conv.rate.pen=sum(conv.pen)/length(conv.pen)
+Delta.pen=Delta.pen[conv.pen==1]
+d.pen=mean(pmax(Delta.pen,0))
+neg.pen=sum(Delta.pen<0)/length(Delta.pen)
+x=seq(0,max(Delta.pen)+1,length=1000)
+par(mfrow=c(1,2))
+hist(Delta.pen,prob=TRUE,xlab=expression(Delta),main="")
+lines(x,dchisq(x,d.pen),lty=3,col="blue")
+itertime.pen=scan("../output/itertime.pen.txt")
+boxplot(itertime.pen,ylab="convergence time in seconds")
+averitertime.pen=mean(itertime.pen)
+options(digits=1)
+```
+
+It turns out with the same simulated data, the algorithm converges `r conv.rate.pen*100`\% of the time, and very quickly.  The average convergen time is `r averitertime.pen` seconds.  The resulting log-likelihood ratio test statistic $\Delta$ is approximately $\chi^2$ distributed, and closer to $0$, but can also be a small negative number `r neg.pen*100`\% of the time.

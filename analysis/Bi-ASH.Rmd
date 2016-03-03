@@ -1,0 +1,287 @@
+---
+title: "Bi-ASH"
+author: "Lei Sun"
+output: html_document
+---
+
+
+
+#Setting#
+
+We have observations $\hat\beta_j$ of true effect $\beta_j$ with estimated measurement error $\hat s_j$, as well as covariate $X_j$.  The true effects presumably have stochastic orders according to their covariates.  We hope to make covariate-modulated inference of the true effects by sharing information among all the data using empirical Bayes methods.
+
+
+#Model#
+
+As suggest by Matthew, the general model is
+
+$$
+\begin{array}{c}
+\beta_j = \alpha_j + X_j\gamma_j\\
+\hat\beta_j|\hat s_j \sim N(\beta_j,\hat s_j^2) \text{ independently}\\
+j=1,\ldots,J
+\end{array}
+$$
+
+where
+
+$$
+\begin{array}{c}
+\alpha_j \sim f^{\alpha}(\cdot) \text{ exchangeably, }f^\alpha \text{ uniform, maybe symmetric}\\
+\gamma_j \sim f^{\gamma}(\cdot) \text{ exchangeably, }f^\gamma \text{ uniform, maybe symmetric}\\
+X_j \text{ binary or continuous}
+\end{array}
+$$
+
+In this setting, if $X_j$ is continuous, larger $|X_j|$ leads to stochastically larger $\beta_j$; if $X_j$ is binary (0 or 1), true effects in Group1 is stochastically larger than those in Group0.
+
+Now we make further assumptions that both $f^\alpha$ and $f^\gamma$ are mixture of zero-mean normals. That is,
+
+$$
+\begin{array}{c}
+f^\alpha=\sum\limits_{k=1}^K\pi_k^{\alpha}N(0,{\sigma_k^\alpha}^2)\\
+f^\gamma=\sum\limits_{l=1}^L\pi_l^{\gamma}N(0,{\sigma_l^\gamma}^2)
+\end{array}
+$$
+
+Then the likelihood of $\hat\beta_j$'s given $\hat s_j$'s is
+
+$$
+\begin{array}{rcl}
+p(\hat\beta|\hat s)&=&\prod\limits_{j=1}^{J}(\sum\limits_{k=1}^{K}\sum\limits_{l=1}^{L}\pi_k^\alpha\pi_l^\gamma N(\hat\beta_j;0,{\sigma_k^\alpha}^2+X_j^2{\sigma_l^\gamma}^2+\hat s_j^2))\\
+&=&\prod\limits_{j=1}^{J}(\sum\limits_{k=1}^{K}\sum\limits_{l=1}^{L}\pi_k^\alpha\pi_l^\gamma f_{jkl})
+\end{array}
+$$
+
+If we can pre-select grids of $\sigma_k^\alpha$ and $\sigma_l^\gamma$, the problem becomes a bi-convex optimization,
+
+$$
+\begin{array}{rl}
+\max\limits_{\pi_{1:K}^\alpha,\pi_{1:L}^\gamma}& \sum\limits_{j=1}^J\log(\sum\limits_{k=1}^{K}\sum\limits_{l=1}^{L}\pi_k^\alpha\pi_l^\gamma f_{jkl})+\sum\limits_{k=1}^K(\lambda_k^\alpha-1)\log\pi_k^\alpha+\sum\limits_{l=1}^L(\lambda_l^\gamma-1)\log\pi_l^\gamma\\
+\text{s.t.}& \sum\limits_{k=1}^{K}\pi_k^\alpha=\sum\limits_{l=1}^{L}\pi_l^\gamma=1\\
+& \pi_{1:K}^\alpha\geq0,\ \pi_{1:L}^\gamma\geq0
+\end{array}
+$$
+
+$\lambda_{1:K}^\alpha$, $\lambda_{1:L}^\gamma$ being penalty terms, which can be solved by bi-EM algorithm using modified ASH functions as follows.
+
+```{r}
+library(SQUAREM)
+
+bimixEM = function (array_lik, prior, pi_init = NULL, control = list()) 
+{
+    control.default = list(K = 1, method = 3, square = TRUE, 
+        step.min0 = 1, step.max0 = 1, mstep = 4, kr = 1, objfn.inc = 1, 
+        tol = 1e-07, maxiter = 5000, trace = FALSE)
+    namc = names(control)
+    if (!all(namc %in% names(control.default))) 
+        stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
+    controlinput = modifyList(control.default, control)
+    K = dim(array_lik)[1]
+    L = dim(array_lik)[2]
+    if (is.null(pi_init)) {
+        pi_init = c(rep(1/K, K),rep(1/L,L))
+    }
+    res = squarem(par = pi_init, fixptfn = bifixpoint, objfn = binegpenloglik, 
+        array_lik = array_lik, prior = prior, control = controlinput)
+    return(list(pihat = 2* normalize(pmax(0, res$par)), B = res$value.objfn, 
+        niter = res$iter, converged = res$convergence))
+}
+
+bifixpoint = function(pi, array_lik, prior){  
+ K = dim(array_lik)[1]
+ L = dim(array_lik)[2]
+ pi_k = pi[1:K]
+ pi_l = pi[-(1:K)]
+ prior_k = prior[1:K]
+ prior_l = prior[-(1:K)]
+ matrix_lik = apply(aperm(array_lik,c(2,1,3))*pi_l,2,colSums)
+ pi_knew = fixpoint(pi_k,matrix_lik,prior_k)
+ matrix_lik = apply(array_lik*pi_knew,2,colSums)
+ pi_lnew = fixpoint(pi_l,matrix_lik,prior_l)
+ return(c(pi_knew,pi_lnew))
+}
+
+fixpoint = function (pi, matrix_lik, prior) 
+{
+    pi = normalize(pmax(0, pi))
+    m = t(pi * t(matrix_lik))
+    m.rowsum = rowSums(m)
+    classprob = m/m.rowsum
+    pinew = normalize(colSums(classprob) + prior - 1)
+    return(pinew)
+}
+
+normalize = function (x) 
+{
+    return(x/sum(x))
+}
+
+binegpenloglik = function (pi, array_lik, prior) 
+{
+    return(-bipenloglik(pi, array_lik, prior))
+}
+
+bipenloglik = function (pi, array_lik, prior) 
+{
+	K = dim(array_lik)[1]
+    pi_k = pi[1:K]
+    pi_l = pi[-(1:K)]
+    loglik = sum(log(colSums(t(apply(pi_k*array_lik,2,colSums))*pi_l)))
+    subset = (prior != 1)
+    priordens = sum((prior - 1)[subset] * log(pi[subset]))
+    return(loglik + priordens)
+}
+```
+
+```{r echo=FALSE, cache=FALSE, eval=FALSE}
+pi=c(rep(1/10,10),rep(1/20,20))
+prior=c(10,rep(1,9),10,rep(10,19))
+array_lik=array(dnorm(rnorm(10*20*1000)),dim=c(10,20,1000))
+
+
+d<-c()
+for (i in 1:100) {
+	pinew<-bifixpoint(pi, array_lik, prior)
+	d<-c(d,bipenloglik(pinew,array_lik,prior)-bipenloglik(pi,array_lik,prior))
+	pi<-pinew
+}
+plot(d,type="l",ylab="incremental change in penalized log-likelihood",xlab="iteration",ylim=c(min(0,min(d)),max(d)))
+abline(0,0,lty=3,col="blue")
+```
+
+#Model, Simplified#
+
+Now we need to fill the 3-way array $F_{JKL}=\{f_{jkl}\}$, and the key is to determine the two grids of $\sigma$: $\sigma_{1:K}^\alpha$, $\sigma_{1:L}^\gamma$.  It turns out the problem is trickier when $X$ is continous, so we only consider the case when $X$ is binary.  Then the problem can be re-written as a two-group model.
+
+$$
+\begin{array}{rl}
+\text{Group0: }& \beta_{0j}=\alpha_{0j}\\
+&\hat\beta_{0j}|\hat s_{0j}\sim N(\beta_{0j},\hat s_{0j}^2) \text{ independently}\\
+\text{Group1: }& \beta_{1j}=\alpha_{1j}+\gamma_{1j}\\
+&\hat\beta_{1j}|\hat s_{1j}\sim N(\beta_{1j},\hat s_{1j}^2) \text{ independently}\\
+\alpha_{ij}&\sim\sum\limits_{k=1}^K\pi_k^\alpha N(0,{\sigma_k^\alpha}^2) \text{ exchangeably, } i=0,1\\
+\gamma_{1j}&\sim\sum\limits_{l=1}^L\pi_l^\gamma N(0,{\sigma_l^\gamma}^2) \text{ exchangeably}
+\end{array}
+$$
+
+Under the setting, true effects in Group1 would be stochastically larger than true effects in Group0. (*\textcolor{blue}{May need theoretical justification.}*)
+
+Then the likelihood of $\hat\beta_j$'s given $\hat s_j$'s is
+
+$$
+\begin{array}{rl}
+\text{Group0:} & p(\hat\beta_0|\hat s_0)=\prod\limits_{j=1}^{J_0}(\sum\limits_{k=1}^{K}\pi_k^\alpha N(\hat\beta_{0j};0,{\sigma_k^\alpha}^2+\hat s_{0j}^2))\\
+\text{Group1:} & p(\hat\beta_1|\hat s_1)=\prod\limits_{j=1}^{J_1}(\sum\limits_{k=1}^{K}\pi_k^\alpha\pi_l^\gamma N(\hat\beta_{1j};0,{\sigma_k^\alpha}^2+{\sigma_l^\gamma}^2+\hat s_{1j}^2))\\
+\end{array}
+$$
+
+The choice of grids of $\sigma$ is not perfectly straightforward since $\sigma_{1:K}^\alpha$ affects both groups, Group0 and Group1; moreover, Group1 is affected by both grids, $\sigma_{1:K}^\alpha$ and $\sigma_{1:L}^\gamma$.  *\textcolor{blue}{We have yet to find a good way to generate the two grids appropriately.}*
+
+Here we use \texttt{ashr:::autoselect.mixsd} to determine the two grids as follows.
+
+```{r eval=FALSE}
+sigmaalpha = ashr:::autoselect.mixsd(betahat0,sebetahat0,sqrt(2))
+sigmagamma = ashr:::autoselect.mixsd(betahat1,sebetahat1,sqrt(2))
+```
+
+Note that here we choose $\sigma_{1:K}^\alpha$ only using the data in Group0, even though they also affect the data in Group1; likewise, we choose $\sigma_{1:L}^\gamma$ as if the influence of $\alpha_{1j}$ doesn't exit.  And we exclude 0 in both grids.  The simplificatio is to make the process easier, and as in ASH, if the grids are dense enough, the result should be accurate enough.
+
+With the fixed grids of $\sigma$, the 3-way array of likelihood can be filled by the followng function.
+
+```{r}
+bilik = function (betahat0, sebetahat0, betahat1, sebetahat1, sigmaalpha, sigmagamma) {
+	N1 = length(betahat0)
+	N2 = length(betahat1)
+	K = length(sigmaalpha)
+	L = length(sigmagamma)
+	J = N1 + N2
+	array_lik = array(0, dim = c(K,L,J))
+	for (j in 1:N1){
+		for (k in 1:K){
+			for (l in 1:L){
+				array_lik[k,l,j] = dnorm(betahat0[j],0,sqrt(sebetahat0[j]^2+sigmaalpha[k]^2))
+			}
+		}
+	}
+	for (j in (N1+1):(N1+N2)){
+		for (k in 1:K){
+			for (l in 1:L){
+				array_lik[k,l,j] = dnorm(betahat1[j-N1],0,sqrt(sebetahat1[j-N1]^2+sigmaalpha[k]^2+sigmagamma[l]^2))
+			}
+		}
+	}
+	return(array_lik)
+}
+```
+
+#Simulation#
+
+We simulate two groups of data as follows.
+
+$$
+\begin{array}{rl}
+\text{Group0: }& \beta_{0j}=\alpha_{0j}, j=1,\ldots,100\\
+&\hat\beta_{0j}|\hat s_{0j}=1\sim N(\beta_{0j},1) \text{ independently}\\
+\text{Group1: }& \beta_{1j}=\alpha_{1j}+\gamma_{1j}, j=1,\ldots,100\\
+&\hat\beta_{1j}|\hat s_{1j}=1\sim N(\beta_{1j},1) \text{ independently}\\
+\alpha_{ij}&\sim 0.5\delta_0 + 0.5N(0,2^2) \text{ exchangeably, } i=0,1\\
+\gamma_{1j}&\sim 0.9\delta_0 + 0.1N(0,5^2) \text{ exchangeably}
+\end{array}
+$$
+
+The idea is, each group has 100 observations.  The "additional effects" in Group1, compared with Group0, are mostly 0, but occasionally very large.
+
+Then we feed the simulated data into our bi-ASH machine, get the log-likelihood $l_{\text{MLE}}$ of the MLE, as well as the log-likelihood $l_{\text{True}}$ of the true distribution, and obtain log-likelihood ratio the test statistic $\Delta=2(l_{\text{MLE}}-l_{\text{True}})$, which presumably follows a $\chi^2$ distribution.  Note that we don't use penalty right now.
+
+```{r, eval=FALSE}
+N0 = 100
+N1 = 100
+
+for (w in 1:200){
+t<-proc.time()
+
+I = runif(N0)
+sebetahat0 = rep(1,N0)
+betahat0 = (I <= 0.5) * 0 + (I > 0.5) * rnorm(N0,0,2) + rnorm(N0,0,1)
+I1 = runif(N1)
+I2 = runif(N1)
+sebetahat1 = rep(1,N1)
+betahat1 = (I1 <= 0.5) * 0 + (I1 > 0.5) * rnorm(N1,0,2) + (I2 <= 0.9) * 0 + (I2 > 0.9) * rnorm(N1,0,5) + rnorm(N1,0,1)
+
+Array_lik = bilik(betahat0, sebetahat0, betahat1, sebetahat1, c(0,2), c(0,5))
+Pi=c(0.5,0.5,0.9,0.1)
+Prior=rep(1,4)
+
+sigmaalpha = ashr:::autoselect.mixsd(betahat0,sebetahat0,sqrt(2))
+sigmagamma = ashr:::autoselect.mixsd(betahat1,sebetahat1,sqrt(2))
+array_lik = bilik(betahat0, sebetahat0, betahat1, sebetahat1, sigmaalpha, sigmagamma)
+prior = rep(1,length(sigmaalpha)+length(sigmagamma))
+
+bioutput=bimixEM(array_lik,prior)
+LLRT=2*((-bioutput$B)-bipenloglik(Pi,Array_lik,Prior))
+
+t<-proc.time()-t
+
+write(as.numeric(bioutput$converged), file = '~/conv.txt', append=TRUE)
+write(LLRT, file = '~/LLRT.txt', append = TRUE)
+write(w, file = '~/log.txt', append = TRUE)
+write(as.vector(t)[3], file = '~/itertime.txt', append = TRUE)
+}
+```
+
+Only 40\% of the time, bi-EM converges, and all converged log-likelihood ratio test statistics $\Delta$ are approximately $\chi^2$, indicating that we've obtain some sort of MLE.
+
+```{r echo=FALSE}
+Delta=scan("../output/LLRT.txt")
+conv=scan("../output/conv.txt")
+Delta=Delta[conv==1]
+d=mean(Delta)
+hist(Delta,prob=T,xlab=expression(Delta),main="")
+x=seq(0,max(Delta)+1,length=100)
+lines(x,dchisq(x,d),col="blue",lty=3)
+```
+
+#Goal#
+
+We hope to statistically analyze the difference of of true effects distributions in two groups, assuming we know a priori that one group's true effects should be stochastically larger than the other's.

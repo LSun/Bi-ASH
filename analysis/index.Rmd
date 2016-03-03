@@ -1,0 +1,13 @@
+---
+title: "Bi-ASH: Covariate-modulated Inference by Empirical Bayes"
+---
+
+**Last updated:** `r Sys.Date()`
+
+**Code version:** `r system("git log -1 --format='%H'", intern = TRUE)`
+
+## [An idea to model stochastic orders](A_way_to_model_stochastic_orders.html)
+
+## [Bi-ASH](Bi-ASH.html)
+
+## [Bi-ASH revised to make it converge more stably](Bi-ASH_revised.html)
