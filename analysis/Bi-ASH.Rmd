@@ -263,24 +263,25 @@ LLRT=2*((-bioutput$B)-bipenloglik(Pi,Array_lik,Prior))
 
 t<-proc.time()-t
 
-write(as.numeric(bioutput$converged), file = '~/conv.txt', append=TRUE)
-write(LLRT, file = '~/LLRT.txt', append = TRUE)
-write(w, file = '~/log.txt', append = TRUE)
-write(as.vector(t)[3], file = '~/itertime.txt', append = TRUE)
+write(as.numeric(bioutput$converged), file = '../output/conv.txt', append=TRUE)
+write(LLRT, file = '../output/LLRT.txt', append = TRUE)
+write(w, file = '../output/log.txt', append = TRUE)
+write(as.vector(t)[3], file = '../output/itertime.txt', append = TRUE)
 }
 ```
 
-Only 40\% of the time, bi-EM converges, and all converged log-likelihood ratio test statistics $\Delta$ are approximately $\chi^2$, indicating that we've obtain some sort of MLE.
-
-```{r echo=FALSE}
+```{r}
 Delta=scan("../output/LLRT.txt")
 conv=scan("../output/conv.txt")
+mean(conv)
 Delta=Delta[conv==1]
 d=mean(Delta)
 hist(Delta,prob=T,xlab=expression(Delta),main="")
 x=seq(0,max(Delta)+1,length=100)
 lines(x,dchisq(x,d),col="blue",lty=3)
 ```
+
+Only `r mean(conv)*100`\% of the time, bi-EM converges, and all converged log-likelihood ratio test statistics $\Delta$ are approximately $\chi^2$, indicating that we've obtain some sort of MLE.
 
 #Goal#
 
