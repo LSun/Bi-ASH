@@ -1,3 +1,5 @@
+# Bi-ASH: Covariate-modulated Adaptive Shrinkage by Empirical Bayes
+
 # ashlar: A workflow template for statistical computing projects
 
 [*ashlar*](http://github.com/jhsiao999/ashlar) is our attempt to streamline workflow and to do reproducible research here at the University of Chicago [Stephens Lab](http://stephenslab.uchicago.edu/). 
