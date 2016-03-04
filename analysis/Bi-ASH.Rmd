@@ -270,6 +270,11 @@ write(as.vector(t)[3], file = '../output/itertime.txt', append = TRUE)
 }
 ```
 
+<<<<<<< HEAD
+=======
+Only 40\% of the time, bi-EM converges, and all converged log-likelihood ratio test statistics $\Delta$ are approximately $\chi^2$, indicating that we've obtain some sort of MLE.
+
+>>>>>>> 2ea65c0bbde9f823c239288f9a09fcf92dd398dc
 ```{r}
 Delta=scan("../output/LLRT.txt")
 conv=scan("../output/conv.txt")
