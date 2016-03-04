@@ -15,9 +15,9 @@ As original.
 
 We revise in the function *bimixEM* (modified based on ASH's *mixEM*) *maxiter=50000* instead of *5000* and keep everything else the same.  Note that we don't use 0 in grids and therefore don't use penalty term.
 
-The Rscript used is [biASHSimMoreIter.R](../code/biASHSimMoreIter.R)
+The simulation is run by an *R* script [biASHSimMoreIter.R](../code/biASHSimMoreIter.R).
 
-```{r echo=FALSE}
+```{r}
 Delta.moreiter=scan("../output/LLRT.moreiter.txt")
 conv.moreiter=scan("../output/conv.moreiter.txt")
 conv.rate.moreiter=sum(conv.moreiter)/length(conv.moreiter)
@@ -39,9 +39,9 @@ It turns out with the same simulated data, the algorithm converges `r conv.rate.
 
 We add 0 in both grids $\sigma_{1:K}^\alpha$ and $\sigma_{1:L}^\gamma$, with $\sigma_1^\alpha=\sigma_1^\gamma=0$, put a penalty term of $\lambda_1^\alpha=\lambda_1^\gamma=10$, with all others $=1$, and keep *maxiter=5000* unchanged.
 
-The Rscript used is [biASHSimPen.R](../code/biASHSimPen.R)
+The simulation is run by an *R* script [biASHSimPen.R](../code/biASHSimPen.R).
 
-```{r echo=FALSE}
+```{r}
 Delta.pen=scan("../output/LLRT.pen.txt")
 conv.pen=scan("../output/conv.pen.txt")
 conv.rate.pen=sum(conv.pen)/length(conv.pen)
