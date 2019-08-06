@@ -19,10 +19,9 @@
 #' @importFrom stats dnorm pnorm
 #' @importFrom utils capture.output modifyList
 #'
-cash = function (x, s = 1,
+cash = function (x1, s1 = 1,
+                 x2, s2 = 1,
                  deltaAt0 = TRUE,
-                 gd.order = 10,
-                 omega.lambda = 10, omega.rho = 0.5, omega.pen = NULL,
                  mixsd.mult = sqrt(2),
                  gd.priority = FALSE,
                  control = list(maxiter = 50)) {
