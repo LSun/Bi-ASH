@@ -23,7 +23,7 @@ cash = function (x1, s1 = 1,
                  x2, s2 = 1,
                  deltaAt0 = TRUE,
                  mixsd.mult = sqrt(2),
-                 gd.priority = FALSE,
+                 effect.priority = FALSE,
                  control = list(maxiter = 50)) {
   L <- gd.order
   
