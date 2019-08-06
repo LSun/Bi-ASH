@@ -21,22 +21,30 @@
 #'
 cash = function (x1, s1 = 1,
                  x2, s2 = 1,
-                 deltaAt0 = TRUE,
-                 mixsd.mult = sqrt(2),
-                 effect.priority = FALSE,
+                 piDeltaAt0 = TRUE,
+                 pi.mixsd.mult = sqrt(2),
+                 omega.mixsd.mult = sqrt(2),
+                 pi.prior,
+                 omega.prior,
+                 pi.first = FALSE,
                  control = list(maxiter = 50)) {
-  L <- gd.order
-  
-  if (all(s > 0) & length(s) == 1L) {
-    s = rep(s, length(x))
-  } else if (length(x) != length(s) | !all(s > 0)) {
-    stop("s should either be a positive number or a vector of positive numbers with the same length of x")
+
+  if (all(s1 > 0) & length(s1) == 1L) {
+    s1 = rep(s1, length(x1))
+  } else if (length(x1) != length(s1) | !all(s1 > 0)) {
+    stop("s1 should either be a positive number or a vector of positive numbers with the same length of x")
   }
   
+  if (all(s2 > 0) & length(s2) == 1L) {
+    s2 = rep(s2, length(x2))
+  } else if (length(x2) != length(s2) | !all(s2 > 0)) {
+    stop("s2 should either be a positive number or a vector of positive numbers with the same length of x")
+  }
+
   ## setting a dense grid of sd for gaussian mixture prior
-  if (deltaAt0) {
-    sd = c(0, autoselect.mixsd(x, s, mult = mixsd.mult))
-    pi_prior = c(10, rep(1, length(sd) - 1))
+  if (effctDeltaAt0) {
+    sd1 = c(0, autoselect.mixsd(x1, s1, mult = mixsd.mult))
+    pi_prior = c(10, rep(1, length(sd1) - 1))
   } else {
     sd = autoselect.mixsd(x, s, mult = mixsd.mult)
     pi_prior = rep(1, length(sd))
