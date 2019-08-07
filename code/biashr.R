@@ -19,7 +19,7 @@
 #' @importFrom stats dnorm pnorm
 #' @importFrom utils capture.output modifyList
 #'
-cash = function (x1, s1 = 1,
+biashr = function (x1, s1 = 1,
                  x2, s2 = 1,
                  pi.at.0 = TRUE,
                  pi.mixsd.mult = sqrt(2),
@@ -45,53 +45,43 @@ cash = function (x1, s1 = 1,
   ## setting a dense grid of sd for pi and omega
   if (pi.at.0) {
     sd1 = c(0, autoselect.mixsd(x1, s1, mult = pi.mixsd.mult))
-    pi_prior = c(pi.null.weight, rep(1, length(sd1) - 1))
   } else {
     sd1 = autoselect.mixsd(x1, s1, mult = pi.mixsd.mult)
-    pi_prior = rep(1, length(sd1))
+    pi.null.weight = 0
   }
   
   if (omega.at.0) {
     sd2 = c(0, autoselect.mixsd(x2, s2, mult = omega.mixsd.mult))
-    omega_prior = c(omega.null.weight, rep(1, length(sd2) - 1))
   } else {
     sd2 = autoselect.mixsd(x2, s2, mult = omega.mixsd.mult)
-    omega_prior = rep(1, length(sd2))
+    omega.null.weight = 0
   }
   
-  array_F = array_f(x1, s1, sd1, x2, s2, sd2)
-  array_F = aperm(array_F, c(2, 3, 1))
-  
-  if (is.null(omega.pen)) {
-    if (is.null(omega.lambda)) {
-      omega_prior = rep(0, L)
-    } else if (is.null(omega.rho)) {
-      omega_prior = rep(omega.lambda, L)
-      omega_prior[seq(1, L, by = 2)] = 0
-    } else {
-      omega_prior = omega.lambda / sqrt(omega.rho^(1 : L))
-      omega_prior[seq(1, L, by = 2)] = 0
-    }
-  } else if (length(omega_pen) == length(L)) {
-    omega_prior = omega.pen
-  } else {
-    stop('The length of penalty parameters of omega should be L.')
-  }
-  
-  hermite = Hermite(L)
-  z.extra = seq(-10, 10, by = 0.001)
-  gd0.std = dnorm(z.extra)
-  matrix_lik_z = cbind(gd0.std)
-  for (i in 1 : L) {
-    gd.std = (-1)^i * hermite[[i]](z.extra) * gd0.std / sqrt(factorial(i))
-    matrix_lik_z = cbind(matrix_lik_z, gd.std)
-  }
-  
-  res = biopt(array_F, matrix_lik_z, pi_prior, omega_prior, control, primal = FALSE, gd.priority)
-  pihat = res$pihat
-  what = res$what
-  fitted_g = normalmix(pi = pihat, mean = 0, sd = sd)
-  penloglik = -res$B
+  mlik.array <- dnorm(x1, 0, sqrt(outer(outer(s1^2, sd1^2, FUN = "+"), sd2^2, FUN = "+")))
+  mlik.mat <- dnorm(x2, 0, sqrt(outer(s2^2, sd2^2, FUN = "+")))
+  K <- dim(mlik.array)[2]
+  L <- dim(mlik.array)[3]
+
+  control.default = list(K = 1, method = 3, square = TRUE,
+                         step.min0 = 1, step.max0 = 1, mstep = 4, kr = 1, objfn.inc = 1,
+                         tol = 1e-07, maxiter = 1000, trace = FALSE)
+  namc = names(control)
+  if (!all(namc %in% names(control.default)))
+    stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
+  controlinput = modifyList(control.default, control)
+
+  res = SQUAREM::squarem(par = c(1, rep(0, K - 1), 1, rep(0, L - 1)),
+                         fixptfn = bifixpoint, objfn = negpenloglik,
+                         mlik.array = mlik.array, mlik.mat = mlik.mat,
+                         pi.null.weight = pi.null.weight, omega.null.weight = omega.null.weight, pi.first = pi.first,
+                         control = controlinput)
+
+  pi.hat = normalize(res$par[1 : K])
+  omega.hat = normalize(res$par[-(1 : K)])
+  g.fitted = normalmix(pi = pi.hat, mean = 0, sd = sd1)
+  penloglik = -res$value.objfn
+  niter = res$fpevals
+  converged = res$convergence
   
   array_PM = array_pm(x, s, sd, L, gd.normalized = TRUE)
   array_PM = aperm(array_PM, c(2, 3, 1))
@@ -115,34 +105,134 @@ cash = function (x1, s1 = 1,
                  array_F = array_F,
                  array_PM = array_PM
   )
-  class(output) <- "cash"
+  class(output) <- "biashr"
   
   return(output)
 }
 
-array_f = function (x1, s1, sd1, x2, s2, sd2) {
-  sd.mat = sqrt(outer(sebetahat^2, sd^2, FUN = "+"))
-  beta.std.mat = betahat / sd.mat
-  temp2 = array(dim = c(dim(beta.std.mat), gd.ord + 1))
-  temp2[, , 1] = dnorm(beta.std.mat)
-  hermite = Hermite(gd.ord)
-  if (gd.normalized) {
-    for (i in 1 : gd.ord) {
-      temp2[, , i + 1] = temp2[, , 1] * hermite[[i]](beta.std.mat) * (-1)^i / sqrt(factorial(i))
-    }
-  } else {
-    for (i in 1 : gd.ord) {
-      temp2[, , i + 1] = temp2[, , 1] * hermite[[i]](beta.std.mat) * (-1)^i
-    }
+autoselect.mixsd = function (betahat, sebetahat, mult) {
+  sebetahat = sebetahat[sebetahat != 0]
+  sigmaamin = min(sebetahat)/10
+  if (all(betahat^2 <= sebetahat^2)) {
+    sigmaamax = 8 * sigmaamin
   }
-  # temp2.test = outer(beta.std.mat, 0:gd.ord, FUN = gauss.deriv)
-  se.std.mat = sebetahat / sd.mat
-  temp1 = exp(outer(log(se.std.mat), 0 : gd.ord + 1, FUN = "*"))
-  array_f = temp1 * temp2 / sebetahat
-  rm(temp1)
-  rm(temp2)
-  return(array_f)
+  else {
+    sigmaamax = 2 * sqrt(max(betahat^2 - sebetahat^2))
+  }
+  if (mult == 0) {
+    return(c(0, sigmaamax/2))
+  }
+  else {
+    npoint = ceiling(log2(sigmaamax/sigmaamin)/log2(mult))
+    return(mult^((-npoint):0) * sigmaamax)
+  }
 }
+
+bifixpoint <- function(pi.omega.current, mlik.array, mlik.mat, pi.null.weight, omega.null.weight, pi.first, control){
+  K <- dim(mlik.array)[2]
+  L <- dim(mlik.array)[3]
+  m <- dim(mlik.array)[1]
+  n <- dim(mlik.mat)[1]
+  pi.current <- pi.omega.current[1 : K]
+  omega.current <- pi.omega.current[-(1 : K)]
+  if (pi.first) {
+    mlik.mat.pi <- apply(aperm(mlik.array, c(3, 2, 1)) * omega.current, 2, colSums)
+    mlik.mat.pi.ext <- rbind(mlik.mat.pi, c(1, rep(0, K - 1)))
+    optim.pi <- mixsqp::mixsqp(L = mlik.mat.pi.ext,
+                               w = c(rep(1, m), pi.null.weight),
+                               x0 = pi.current,
+                               control = list(verbose = FALSE))
+    pi.new <- optim.pi$x
+    mlik.mat.omega <- rbind(apply(aperm(mlik.array, c(2, 3, 1)) * pi.new, 2, colSums), mlik.mat)
+    mlik.mat.omega.ext <- rbind(mlik.mat.omega, c(1, rep(0, L - 1)))
+    optim.omega <- mixsqp::mixsqp(L = mlik.mat.omega.ext,
+                                  w = c(rep(1, m + n), omega.null.weight),
+                                  x0 = omega.current,
+                                  control = list(verbose = FALSE))
+    omega.new <- optim.omega$x
+  } else {
+    mlik.mat.omega <- rbind(apply(aperm(mlik.array, c(2, 3, 1)) * pi.current, 2, colSums), mlik.mat)
+    mlik.mat.omega.ext <- rbind(mlik.mat.omega, c(1, rep(0, L - 1)))
+    optim.omega <- mixsqp::mixsqp(L = mlik.mat.omega.ext,
+                                  w = c(rep(1, m + n), omega.null.weight),
+                                  x0 = omega.current,
+                                  control = list(verbose = FALSE))
+    omega.new <- optim.omega$x
+    mlik.mat.pi <- apply(aperm(mlik.array, c(3, 2, 1)) * omega.new, 2, colSums)
+    mlik.mat.pi.ext <- rbind(mlik.mat.pi, c(1, rep(0, K - 1)))
+    optim.pi <- mixsqp::mixsqp(L = mlik.mat.pi.ext,
+                               w = c(rep(1, m), pi.null.weight),
+                               x0 = pi.current,
+                               control = list(verbose = FALSE))
+    pi.new <- optim.pi$x
+  }
+  return(c(pi.new, omega.new))
+}
+
+negpenloglik = function (pi.omega.current, mlik.array, mlik.mat, pi.null.weight, omega.null.weight, pi.first, control) {
+  K = dim(mlik.array)[2]
+  pi.current = pi.omega.current[1 : K]
+  omega.current = pi.omega.current[-(1 : K)]
+  loglik = sum(log(pmax(0, colSums(t(apply(aperm(mlik.array, c(2, 3, 1)) * pi.current, 2, colSums)) * omega.current)))) +
+    sum(log(pmax(0, colSums(t(mlik.mat) * omega.current))))
+  if (pi.null.weight)
+  penloglik = loglik + pi.null.weight * log(pi.current[1]) + omega.null.weight * log(omega.current[1])
+  return(-penloglik)
+}
+
+normalize = function (x) {
+  return(x/sum(x))
+}
+
+normalmix = function (pi, mean, sd) {
+  structure(data.frame(pi, mean, sd), class = "normalmix")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set_control_squarem=function(control,nobs){
+  control.default=list(K = 1, method=3, square=TRUE, step.min0=1, step.max0=1, mstep=4, kr=1, objfn.inc=1,tol=1.e-07, maxiter=5000, trace=FALSE)
+  if (nobs > 50000) control.default$trace = TRUE
+  control.default$tol = min(0.1/nobs,1.e-7) # set default convergence criteria to be more stringent for larger samples
+  namc=names(control)
+  if (!all(namc %in% names(control.default)))
+    stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
+  control=utils::modifyList(control.default, control)
+  return(control)
+}
+
+set_control_mixIP=function(control){
+  control.default=list(rtol=1e-6)
+  namc=names(control)
+  if (!all(namc %in% names(control.default)))
+    stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
+  control=utils::modifyList(control.default, control)
+  return(control)
+}
+
+biopt = function (mlik.array, mlik.mat, pi.prior, omega.prior, pi.first, control) {
+
+}
+
 
 
 
@@ -195,35 +285,6 @@ compute_lfsr <- function (NegativeProb, ZeroProb) {
   ifelse(NegativeProb > 0.5 * (1 - ZeroProb), 1 - NegativeProb, NegativeProb + ZeroProb)
 }
 
-bifixpoint = function(pinw, array_F, matrix_lik_z, pi_prior, w_prior, primal, gd.priority){
-  Kpi = dim(array_F)[1]
-  Lw = dim(array_F)[2]
-  pi = pinw[1 : Kpi]
-  w = pinw[-(1 : Kpi)]
-  if (gd.priority) {
-    matrix_lik_w = apply(array_F * pi, 2, colSums)
-    if (primal) {
-      g_current = matrix_lik_w %*% w
-      w_new = c(1, w.mosek.primal(matrix_lik_w, w_prior, w.init = c(g_current, w[-1]))$w)
-    } else {
-      w_new = c(1, w.mosek(matrix_lik_w, matrix_lik_z, w_prior, w.init = w)$w)
-    }
-    matrix_lik_pi = apply(aperm(array_F, c(2, 1, 3)) * w_new, 2, colSums)
-    pi_new = mixIP(matrix_lik_pi, pi_prior, pi)$pihat
-  } else {
-    matrix_lik_pi = apply(aperm(array_F, c(2, 1, 3)) * w, 2, colSums)
-    pi_new = mixIP(matrix_lik_pi, pi_prior, pi)$pihat
-    matrix_lik_w = apply(array_F * pi_new, 2, colSums)
-    if (primal) {
-      g_current = matrix_lik_w %*% w
-      w_new = c(1, w.mosek.primal(matrix_lik_w, w_prior, w.init = c(g_current, w[-1]))$w)
-    } else {
-      w_new = c(1, w.mosek(matrix_lik_w, matrix_lik_z, w_prior, w.init = w)$w)
-    }
-  }
-  # w_new = c(1, w.cvxr.uncns(matrix_lik_w, w.init = w)$primal_values[[1]])
-  return(c(pi_new, w_new))
-}
 
 # w.cvxr.uncns = function (matrix_lik_w, w.init = NULL) {
 #   FF <- matrix_lik_w[, -1]
@@ -333,68 +394,8 @@ mixIP = function (matrix_lik, prior, pi_init = NULL, control = list()) {
   return(list(pihat = normalize(res$f), niter = NULL, converged=(res$status=="OPTIMAL"), control=control))
 }
 
-set_control_squarem=function(control,nobs){
-  control.default=list(K = 1, method=3, square=TRUE, step.min0=1, step.max0=1, mstep=4, kr=1, objfn.inc=1,tol=1.e-07, maxiter=5000, trace=FALSE)
-  if (nobs > 50000) control.default$trace = TRUE
-  control.default$tol = min(0.1/nobs,1.e-7) # set default convergence criteria to be more stringent for larger samples
-  namc=names(control)
-  if (!all(namc %in% names(control.default)))
-    stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
-  control=utils::modifyList(control.default, control)
-  return(control)
-}
 
-set_control_mixIP=function(control){
-  control.default=list(rtol=1e-6)
-  namc=names(control)
-  if (!all(namc %in% names(control.default)))
-    stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
-  control=utils::modifyList(control.default, control)
-  return(control)
-}
 
-biopt = function (array_F, matrix_lik_z, pi_prior, w_prior, control, primal, gd.priority) {
-  control.default = list(K = 1, method = 3, square = TRUE,
-                         step.min0 = 1, step.max0 = 1, mstep = 4, kr = 1, objfn.inc = 1,
-                         tol = 1e-07, maxiter = 5000, trace = FALSE)
-  namc = names(control)
-  if (!all(namc %in% names(control.default)))
-    stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
-  controlinput = modifyList(control.default, control)
-  Kpi = dim(array_F)[1]
-  Lw = dim(array_F)[2]
-  pinw_init = c(1, rep(0, Kpi - 1), 1, rep(0, Lw - 1))
-  res = SQUAREM::squarem(par = pinw_init, fixptfn = bifixpoint, objfn = binegpenloglik,
-                         array_F = array_F, matrix_lik_z = matrix_lik_z, pi_prior = pi_prior, w_prior = w_prior, primal = primal, gd.priority = gd.priority, control = controlinput)
-  return(list(pihat = normalize(pmax(0, res$par[1 : Kpi])),
-              what = res$par[-(1 : Kpi)],
-              B = res$value.objfn,
-              niter = res$fpevals,
-              converged = res$convergence))
-}
-
-normalmix = function (pi, mean, sd) {
-  structure(data.frame(pi, mean, sd), class = "normalmix")
-}
-
-binegpenloglik = function (pinw, array_F, matrix_lik_z, pi_prior, w_prior, primal, gd.priority)
-{
-  return(-bipenloglik(pinw, array_F, pi_prior, w_prior))
-}
-
-bipenloglik = function (pinw, array_F, pi_prior, w_prior) {
-  K = dim(array_F)[1]
-  pi = pinw[1 : K]
-  w = pinw[-(1 : K)]
-  loglik = sum(log(pmax(0, colSums(t(apply(pi * array_F, 2, colSums)) * w))))
-  subset = (pi_prior != 1)
-  priordens = sum((pi_prior - 1)[subset] * log(pi[subset]))
-  return(loglik + priordens - sum(abs(w[-1]) * w_prior))
-}
-
-normalize = function (x) {
-  return(x/sum(x))
-}
 
 ## this function is vectorized for x
 ## more efficient if let it run for x at once
@@ -504,24 +505,6 @@ array_PosProb = function (betahat, sebetahat, deltaAt0, sd, gd.ord, gd.normalize
   return(array_PosProb)
 }
 
-autoselect.mixsd = function (betahat, sebetahat, mult)
-{
-  sebetahat = sebetahat[sebetahat != 0]
-  sigmaamin = min(sebetahat)/10
-  if (all(betahat^2 <= sebetahat^2)) {
-    sigmaamax = 8 * sigmaamin
-  }
-  else {
-    sigmaamax = 2 * sqrt(max(betahat^2 - sebetahat^2))
-  }
-  if (mult == 0) {
-    return(c(0, sigmaamax/2))
-  }
-  else {
-    npoint = ceiling(log2(sigmaamax/sigmaamin)/log2(mult))
-    return(mult^((-npoint):0) * sigmaamax)
-  }
-}
 
 plot.ghat = function (fitted.g, mixcompdist = "normal", xlim = c(-10, 10)) {
   pi = fitted.g$pi
