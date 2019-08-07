@@ -47,14 +47,12 @@ biashr = function (x1, s1 = 1,
     sd1 = c(0, autoselect.mixsd(x1, s1, mult = pi.mixsd.mult))
   } else {
     sd1 = autoselect.mixsd(x1, s1, mult = pi.mixsd.mult)
-    pi.null.weight = 0
   }
   
   if (omega.at.0) {
     sd2 = c(0, autoselect.mixsd(x2, s2, mult = omega.mixsd.mult))
   } else {
     sd2 = autoselect.mixsd(x2, s2, mult = omega.mixsd.mult)
-    omega.null.weight = 0
   }
   
   mlik.array <- dnorm(x1, 0, sqrt(outer(outer(s1^2, sd1^2, FUN = "+"), sd2^2, FUN = "+")))
@@ -73,7 +71,9 @@ biashr = function (x1, s1 = 1,
   res = SQUAREM::squarem(par = c(1, rep(0, K - 1), 1, rep(0, L - 1)),
                          fixptfn = bifixpoint, objfn = negpenloglik,
                          mlik.array = mlik.array, mlik.mat = mlik.mat,
-                         pi.null.weight = pi.null.weight, omega.null.weight = omega.null.weight, pi.first = pi.first,
+                         pi.at.0 = pi.at.0, pi.null.weight = pi.null.weight,
+                         omega.at.0, omega.null.weight = omega.null.weight,
+                         pi.first = pi.first,
                          control = controlinput)
 
   pi.hat = normalize(res$par[1 : K])
@@ -110,25 +110,27 @@ biashr = function (x1, s1 = 1,
   return(output)
 }
 
-autoselect.mixsd = function (betahat, sebetahat, mult) {
-  sebetahat = sebetahat[sebetahat != 0]
-  sigmaamin = min(sebetahat)/10
-  if (all(betahat^2 <= sebetahat^2)) {
+autoselect.mixsd = function (x, s, mult) {
+  s = s[s != 0]
+  sigmaamin = min(s)/10
+  if (all(x^2 <= s^2)) {
     sigmaamax = 8 * sigmaamin
-  }
-  else {
-    sigmaamax = 2 * sqrt(max(betahat^2 - sebetahat^2))
+  } else {
+    sigmaamax = 2 * sqrt(max(x^2 - s^2))
   }
   if (mult == 0) {
     return(c(0, sigmaamax/2))
-  }
-  else {
+  } else {
     npoint = ceiling(log2(sigmaamax/sigmaamin)/log2(mult))
-    return(mult^((-npoint):0) * sigmaamax)
+    return(mult^((-npoint) : 0) * sigmaamax)
   }
 }
 
-bifixpoint <- function(pi.omega.current, mlik.array, mlik.mat, pi.null.weight, omega.null.weight, pi.first, control){
+bifixpoint <- function (pi.omega.current,
+                        mlik.array, mlik.mat,
+                        pi.at.0, pi.null.weight,
+                        omega.at.0, omega.null.weight,
+                        pi.first, control) {
   K <- dim(mlik.array)[2]
   L <- dim(mlik.array)[3]
   m <- dim(mlik.array)[1]
@@ -137,31 +139,55 @@ bifixpoint <- function(pi.omega.current, mlik.array, mlik.mat, pi.null.weight, o
   omega.current <- pi.omega.current[-(1 : K)]
   if (pi.first) {
     mlik.mat.pi <- apply(aperm(mlik.array, c(3, 2, 1)) * omega.current, 2, colSums)
-    mlik.mat.pi.ext <- rbind(mlik.mat.pi, c(1, rep(0, K - 1)))
+    if (pi.at.0 & pi.null.weight != 0) {
+      mlik.mat.pi.ext <- rbind(mlik.mat.pi, c(1, rep(0, K - 1)))
+      optim.weight <- c(rep(1, m), pi.null.weight)
+    } else {
+      mlik.mat.pi.ext <- mlik.mat.pi
+      optim.weight <- rep(1, m)
+    }
     optim.pi <- mixsqp::mixsqp(L = mlik.mat.pi.ext,
-                               w = c(rep(1, m), pi.null.weight),
+                               w = optim.weight,
                                x0 = pi.current,
                                control = list(verbose = FALSE))
     pi.new <- optim.pi$x
     mlik.mat.omega <- rbind(apply(aperm(mlik.array, c(2, 3, 1)) * pi.new, 2, colSums), mlik.mat)
-    mlik.mat.omega.ext <- rbind(mlik.mat.omega, c(1, rep(0, L - 1)))
+    if (omega.at.0 & omega.null.weight != 0) {
+      mlik.mat.omega.ext <- rbind(mlik.mat.omega, c(1, rep(0, L - 1)))
+      optim.weight <- c(rep(1, m + n), omega.null.weight)
+    } else {
+      mlik.mat.omega.ext <- mlik.mat.omega
+      optim.weight <- rep(1, m + n)
+    }
     optim.omega <- mixsqp::mixsqp(L = mlik.mat.omega.ext,
-                                  w = c(rep(1, m + n), omega.null.weight),
+                                  w = optim.weight,
                                   x0 = omega.current,
                                   control = list(verbose = FALSE))
     omega.new <- optim.omega$x
   } else {
     mlik.mat.omega <- rbind(apply(aperm(mlik.array, c(2, 3, 1)) * pi.current, 2, colSums), mlik.mat)
-    mlik.mat.omega.ext <- rbind(mlik.mat.omega, c(1, rep(0, L - 1)))
+    if (omega.at.0 & omega.null.weight != 0) {
+      mlik.mat.omega.ext <- rbind(mlik.mat.omega, c(1, rep(0, L - 1)))
+      optim.weight <- c(rep(1, m + n), omega.null.weight)
+    } else {
+      mlik.mat.omega.ext <- mlik.mat.omega
+      optim.weight <- rep(1, m + n)
+    }
     optim.omega <- mixsqp::mixsqp(L = mlik.mat.omega.ext,
-                                  w = c(rep(1, m + n), omega.null.weight),
+                                  w = optim.weight,
                                   x0 = omega.current,
                                   control = list(verbose = FALSE))
     omega.new <- optim.omega$x
     mlik.mat.pi <- apply(aperm(mlik.array, c(3, 2, 1)) * omega.new, 2, colSums)
-    mlik.mat.pi.ext <- rbind(mlik.mat.pi, c(1, rep(0, K - 1)))
+    if (pi.at.0 & pi.null.weight != 0) {
+      mlik.mat.pi.ext <- rbind(mlik.mat.pi, c(1, rep(0, K - 1)))
+      optim.weight <- c(rep(1, m), pi.null.weight)
+    } else {
+      mlik.mat.pi.ext <- mlik.mat.pi
+      optim.weight <- rep(1, m)
+    }
     optim.pi <- mixsqp::mixsqp(L = mlik.mat.pi.ext,
-                               w = c(rep(1, m), pi.null.weight),
+                               w = optim.weight,
                                x0 = pi.current,
                                control = list(verbose = FALSE))
     pi.new <- optim.pi$x
@@ -169,14 +195,26 @@ bifixpoint <- function(pi.omega.current, mlik.array, mlik.mat, pi.null.weight, o
   return(c(pi.new, omega.new))
 }
 
-negpenloglik = function (pi.omega.current, mlik.array, mlik.mat, pi.null.weight, omega.null.weight, pi.first, control) {
+negpenloglik = function (pi.omega.current,
+                         mlik.array, mlik.mat,
+                         pi.at.0, pi.null.weight,
+                         omega.at.0, omega.null.weight,
+                         pi.first, control) {
   K = dim(mlik.array)[2]
   pi.current = pi.omega.current[1 : K]
   omega.current = pi.omega.current[-(1 : K)]
   loglik = sum(log(pmax(0, colSums(t(apply(aperm(mlik.array, c(2, 3, 1)) * pi.current, 2, colSums)) * omega.current)))) +
     sum(log(pmax(0, colSums(t(mlik.mat) * omega.current))))
-  if (pi.null.weight)
-  penloglik = loglik + pi.null.weight * log(pi.current[1]) + omega.null.weight * log(omega.current[1])
+  if (pi.at.0 & pi.null.weight != 0) {
+    penloglik = loglik + pi.null.weight * log(pi.current[1])
+  } else {
+    penloglik = loglik
+  }
+  if (omega.at.0 & omega.null.weight != 0) {
+    penloglik = penloglik + omega.null.weight * log(omega.current[1])
+  } else {
+    penloglik = penloglik
+  }
   return(-penloglik)
 }
 
