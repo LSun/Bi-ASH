@@ -21,11 +21,12 @@
 #'
 cash = function (x1, s1 = 1,
                  x2, s2 = 1,
-                 piDeltaAt0 = TRUE,
+                 pi.at.0 = TRUE,
                  pi.mixsd.mult = sqrt(2),
+                 pi.null.weight = 10,
+                 omega.at.0 = TRUE,
                  omega.mixsd.mult = sqrt(2),
-                 pi.prior,
-                 omega.prior,
+                 omega.null.weight = 10,
                  pi.first = FALSE,
                  control = list(maxiter = 50)) {
 
@@ -41,16 +42,24 @@ cash = function (x1, s1 = 1,
     stop("s2 should either be a positive number or a vector of positive numbers with the same length of x")
   }
 
-  ## setting a dense grid of sd for gaussian mixture prior
-  if (effctDeltaAt0) {
-    sd1 = c(0, autoselect.mixsd(x1, s1, mult = mixsd.mult))
-    pi_prior = c(10, rep(1, length(sd1) - 1))
+  ## setting a dense grid of sd for pi and omega
+  if (pi.at.0) {
+    sd1 = c(0, autoselect.mixsd(x1, s1, mult = pi.mixsd.mult))
+    pi_prior = c(pi.null.weight, rep(1, length(sd1) - 1))
   } else {
-    sd = autoselect.mixsd(x, s, mult = mixsd.mult)
-    pi_prior = rep(1, length(sd))
+    sd1 = autoselect.mixsd(x1, s1, mult = pi.mixsd.mult)
+    pi_prior = rep(1, length(sd1))
   }
   
-  array_F = array_f(x, s, sd, L, mixcompdist = 'normal', gd.normalized = TRUE)
+  if (omega.at.0) {
+    sd2 = c(0, autoselect.mixsd(x2, s2, mult = omega.mixsd.mult))
+    omega_prior = c(omega.null.weight, rep(1, length(sd2) - 1))
+  } else {
+    sd2 = autoselect.mixsd(x2, s2, mult = omega.mixsd.mult)
+    omega_prior = rep(1, length(sd2))
+  }
+  
+  array_F = array_f(x1, s1, sd1, x2, s2, sd2)
   array_F = aperm(array_F, c(2, 3, 1))
   
   if (is.null(omega.pen)) {
@@ -110,6 +119,31 @@ cash = function (x1, s1 = 1,
   
   return(output)
 }
+
+array_f = function (x1, s1, sd1, x2, s2, sd2) {
+  sd.mat = sqrt(outer(sebetahat^2, sd^2, FUN = "+"))
+  beta.std.mat = betahat / sd.mat
+  temp2 = array(dim = c(dim(beta.std.mat), gd.ord + 1))
+  temp2[, , 1] = dnorm(beta.std.mat)
+  hermite = Hermite(gd.ord)
+  if (gd.normalized) {
+    for (i in 1 : gd.ord) {
+      temp2[, , i + 1] = temp2[, , 1] * hermite[[i]](beta.std.mat) * (-1)^i / sqrt(factorial(i))
+    }
+  } else {
+    for (i in 1 : gd.ord) {
+      temp2[, , i + 1] = temp2[, , 1] * hermite[[i]](beta.std.mat) * (-1)^i
+    }
+  }
+  # temp2.test = outer(beta.std.mat, 0:gd.ord, FUN = gauss.deriv)
+  se.std.mat = sebetahat / sd.mat
+  temp1 = exp(outer(log(se.std.mat), 0 : gd.ord + 1, FUN = "*"))
+  array_f = temp1 * temp2 / sebetahat
+  rm(temp1)
+  rm(temp2)
+  return(array_f)
+}
+
 
 
 #' Title
@@ -362,16 +396,6 @@ normalize = function (x) {
   return(x/sum(x))
 }
 
-
-array_f = function (betahat, sebetahat, sd, gd.ord, mixcompdist, gd.normalized) {
-  if (mixcompdist == "normal") {
-    array_f = array_f.normal(betahat, sebetahat, sd, gd.ord, gd.normalized)
-  } else {
-    stop ("invalid prior mixture")
-  }
-  return(array_f)
-}
-
 ## this function is vectorized for x
 ## more efficient if let it run for x at once
 gauss.deriv = function(x, ord) {
@@ -386,30 +410,6 @@ Hermite = function (gd.ord) {
       H[[n+1]] <- x * H[[n]] - n * H[[n-1]]
   }
   return(H)
-}
-
-array_f.normal = function (betahat, sebetahat, sd, gd.ord, gd.normalized) {
-  sd.mat = sqrt(outer(sebetahat^2, sd^2, FUN = "+"))
-  beta.std.mat = betahat / sd.mat
-  temp2 = array(dim = c(dim(beta.std.mat), gd.ord + 1))
-  temp2[, , 1] = dnorm(beta.std.mat)
-  hermite = Hermite(gd.ord)
-  if (gd.normalized) {
-    for (i in 1 : gd.ord) {
-      temp2[, , i + 1] = temp2[, , 1] * hermite[[i]](beta.std.mat) * (-1)^i / sqrt(factorial(i))
-    }
-  } else {
-    for (i in 1 : gd.ord) {
-      temp2[, , i + 1] = temp2[, , 1] * hermite[[i]](beta.std.mat) * (-1)^i
-    }
-  }
-  # temp2.test = outer(beta.std.mat, 0:gd.ord, FUN = gauss.deriv)
-  se.std.mat = sebetahat / sd.mat
-  temp1 = exp(outer(log(se.std.mat), 0 : gd.ord + 1, FUN = "*"))
-  array_f = temp1 * temp2 / sebetahat
-  rm(temp1)
-  rm(temp2)
-  return(array_f)
 }
 
 array_pm = function (betahat, sebetahat, sd, gd.ord, gd.normalized) {
