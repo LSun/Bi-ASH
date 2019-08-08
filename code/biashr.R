@@ -55,7 +55,8 @@ biashr = function (x1, s1 = 1,
     sd2 = autoselect.mixsd(x2, s2, mult = omega.mixsd.mult)
   }
   
-  mlik.array <- dnorm(x1, 0, sqrt(outer(outer(s1^2, sd1^2, FUN = "+"), sd2^2, FUN = "+")))
+  sd.array <- sqrt(outer(outer(s1^2, sd1^2, FUN = "+"), sd2^2, FUN = "+"))
+  mlik.array <- dnorm(x1, 0, sd.array)
   mlik.mat <- dnorm(x2, 0, sqrt(outer(s2^2, sd2^2, FUN = "+")))
   K <- dim(mlik.array)[2]
   L <- dim(mlik.array)[3]
@@ -79,31 +80,31 @@ biashr = function (x1, s1 = 1,
   pi.hat = normalize(res$par[1 : K])
   omega.hat = normalize(res$par[-(1 : K)])
   g.fitted = normalmix(pi = pi.hat, mean = 0, sd = sd1)
+  f.fitted = normalmix(pi = omega.hat, mean = 0, sd = sd2)
   penloglik = -res$value.objfn
   niter = res$fpevals
   converged = res$convergence
   
-  array_PM = array_pm(x, s, sd, L, gd.normalized = TRUE)
-  array_PM = aperm(array_PM, c(2, 3, 1))
-  theta_pm = colSums(t(apply(pihat * array_PM, 2, colSums)) * what) / colSums(t(apply(pihat * array_F, 2, colSums)) * what)
+  theta.post.mean.array <- aperm(aperm(x1 / sd.array^2, c(2, 1, 3)) * sd1^2, c(2, 1, 3))
+  theta.post.weight.array <- mlik.array / colSums(apply(aperm(mlik.array, c(2, 1, 3)) * pi.hat, 2, colSums) * omega.hat)
+  theta.post.mean <- colSums(apply(aperm(theta.post.mean.array * theta.post.weight.array, c(2, 1, 3)) * pi.hat, 2, colSums) * omega.hat)
   
-  lfdr = lfdr_top(pihat[1], what, x, s, L) / colSums(t(apply(pihat * array_F, 2, colSums)) * what)
-  qvalue = qval.from.lfdr(lfdr)
+  if (pi.at.0) {
+    theta.lfdr <- pi.hat[1] * colSums(t(dnorm(x1, 0, sqrt(outer(s1^2, sd2^2, FUN = "+")))) * omega.hat)/ colSums(apply(aperm(mlik.array, c(2, 1, 3)) * pi.hat, 2, colSums) * omega.hat)
+  } else {
+    theta.lfdr <- rep(0, length(x1))
+  }
+
+  theta.qvalue = qval.from.lfdr(theta.lfdr)
   
-  output <- list(fitted_g = fitted_g,
-                 gd.order = L,
-                 omega = what,
+  output <- list(g.fitted = g.fitted,
+                 f.fitted = f.fitted,
                  penloglik = penloglik,
                  niter = res$niter,
                  converged = res$converged,
-                 pm = theta_pm,
-                 lfdr = as.vector(lfdr),
-                 qvalue = qvalue,
-                 x = x,
-                 s = s,
-                 deltaAt0 = deltaAt0,
-                 array_F = array_F,
-                 array_PM = array_PM
+                 theta.postmean = theta.post.mean,
+                 theta.lfdr = theta.lfdr,
+                 theta.qvalue = theta.qvalue
   )
   class(output) <- "biashr"
   
@@ -226,6 +227,15 @@ normalmix = function (pi, mean, sd) {
   structure(data.frame(pi, mean, sd), class = "normalmix")
 }
 
+qval.from.lfdr <- function (lfdr) {
+  if (sum(!is.na(lfdr)) == 0) {
+    return(rep(NA, length(lfdr)))
+  }
+  o = order(lfdr)
+  qvalue = rep(NA, length(lfdr))
+  qvalue[o] = (cumsum(sort(lfdr))/(1 : sum(!is.na(lfdr))))
+  return(qvalue)
+}
 
 
 
@@ -265,10 +275,6 @@ set_control_mixIP=function(control){
     stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
   control=utils::modifyList(control.default, control)
   return(control)
-}
-
-biopt = function (mlik.array, mlik.mat, pi.prior, omega.prior, pi.first, control) {
-
 }
 
 
@@ -561,12 +567,3 @@ ghat.cdf = function (x, fitted.g) {
   return(sum(pi * pnorm(x, mean, sd)))
 }
 
-qval.from.lfdr <- function (lfdr) {
-  if (sum(!is.na(lfdr)) == 0) {
-    return(rep(NA, length(lfdr)))
-  }
-  o = order(lfdr)
-  qvalue = rep(NA, length(lfdr))
-  qvalue[o] = (cumsum(sort(lfdr))/(1 : sum(!is.na(lfdr))))
-  return(qvalue)
-}
