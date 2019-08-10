@@ -4,20 +4,21 @@ source('~/GitHub/Bi-ASH/code/biashr.R')
 
 set.seed(777)
 
-nctrl <- 1e3
+nctrl <- 5e3
 nnctrl <- 1e3
 prop.null <- 0.9
 nsamp <- 20
 q <- 0.1
 
 Y = lcpm(r)
-subset = top_genes_index(nctrl + nnctrl, Y)
-r = r[subset, sample(ncol(r), nsamp)]
-pi0hat <- FDPq <- c()
+subset = top_genes_index(2e4, Y)
+r = r[sample(subset, nctrl + nnctrl), sample(ncol(r), nsamp)]
+pi0hat.biashr <- FDPq.biashr <- c()
+pi0hat.ashr <- FDPq.ashr <- c()
 
-for (i in 1 : 600) {
+for (i in 1 : 100) {
 r.signaladded <- seqgendiff::thin_2group(mat = as.matrix(r), 
-                     prop_null = (prop.null * nnctrl + nnctrl) / (nctrl + nnctrl), 
+                     prop_null = (prop.null * nnctrl + nctrl) / (nctrl + nnctrl), 
                      signal_fun = stats::rnorm,
                      signal_params = list(mean = 0, sd = 0.75))
 
