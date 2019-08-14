@@ -61,15 +61,13 @@ biashr = function (x1, s1 = 1,
   K <- dim(mlik.array)[2]
   L <- dim(mlik.array)[3]
 
-  control.default = list(K = 1, method = 3, square = TRUE,
-                         step.min0 = 1, step.max0 = 1, mstep = 4, kr = 1, objfn.inc = 1,
-                         tol = 1e-07, maxiter = 1000, trace = FALSE)
+  control.default = list(tol = 1e-07, maxiter = 1000, trace = FALSE)
   namc = names(control)
   if (!all(namc %in% names(control.default)))
     stop("unknown names in control: ", namc[!(namc %in% names(control.default))])
   controlinput = modifyList(control.default, control)
 
-  res = SQUAREM::squarem(par = c(1, rep(0, K - 1), 1, rep(0, L - 1)),
+  res = SQUAREM::fpiter(par = c(1, rep(0, K - 1), 1, rep(0, L - 1)),
                          fixptfn = bifixpoint, objfn = negpenloglik,
                          mlik.array = mlik.array, mlik.mat = mlik.mat,
                          pi.at.0 = pi.at.0, pi.null.weight = pi.null.weight,
