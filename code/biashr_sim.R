@@ -6,7 +6,7 @@ r <- readRDS("~/GitHub/Bi-ASH/data/muscle.rds")
 
 set.seed(777)
 
-num.nctrl <- 5e3
+num.nctrl <- 1e4
 num.ctrl <- 1e3
 prop.null <- 0.9
 nsamp <- 10
@@ -20,7 +20,7 @@ r.ctrl <- r[-(1 : num.nctrl), ]
 pi0hat.biashr <- FDPq.biashr <- c()
 pi0hat.ashr <- FDPq.ashr <- c()
 
-for (i in 1 : 1000) {
+for (i in 1 : 200) {
 r.nctrl.signaladded <- seqgendiff::thin_2group(mat = as.matrix(r.nctrl), 
                      prop_null = prop.null,
                      signal_fun = stats::rnorm,
