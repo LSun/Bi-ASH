@@ -6,9 +6,9 @@ r <- readRDS("~/GitHub/Bi-ASH/data/muscle.rds")
 
 set.seed(777)
 
-num.nctrl <- 1e4
-num.ctrl <- 1e3
-prop.null <- 0.9
+num.nctrl <- 1e3
+num.ctrl <- 5e2
+prop.null <- 0.8
 nsamp <- 10
 q <- 0.1
 
