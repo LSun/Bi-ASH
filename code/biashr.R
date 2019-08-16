@@ -83,6 +83,11 @@ biashr = function (x1, s1 = 1,
   niter = res$fpevals
   converged = res$convergence
   
+  pi.null = c(1, rep(0, K - 1))
+  loglik.null <- sum(log(pmax(0, colSums(t(apply(aperm(mlik.array, c(2, 3, 1)) * pi.null, 2, colSums)) * omega.hat))))
+  loglik.pi.hat <- sum(log(pmax(0, colSums(t(apply(aperm(mlik.array, c(2, 3, 1)) * pi.hat, 2, colSums)) * omega.hat))))
+  loglikratio <- loglik.pi.hat - loglik.null
+  
   theta.postweight.array <- mlik.array / colSums(apply(aperm(mlik.array, c(2, 1, 3)) * pi.hat, 2, colSums) * omega.hat)
   theta.postmean.array <- aperm(aperm(x1 / sd.array^2, c(2, 1, 3)) * sd1^2, c(2, 1, 3))
   theta.postsd.array <- sqrt(aperm(aperm(s1^2 / sd.array^2, c(2, 1, 3)) * sd1^2, c(2, 1, 3)) + aperm(aperm(aperm(1 / sd.array^2, c(2, 1, 3)) * sd1^2, c(3, 2, 1)) * sd2^2, c(2, 3, 1)))
@@ -104,6 +109,7 @@ biashr = function (x1, s1 = 1,
   output <- list(g.fitted = g.fitted,
                  f.fitted = f.fitted,
                  penloglik = penloglik,
+                 loglikratio = loglikratio,
                  converged = converged,
                  niter = niter,
                  theta.postmean = theta.postmean,
@@ -257,7 +263,7 @@ compute_lfsr <- function (NegativeProb, ZeroProb) {
 #'
 #' @examples
 summary.biashr <- function (output, ...) {
-  output[1 : 5]
+  output[1 : 6]
 }
 
 #' Title
