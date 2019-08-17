@@ -10,8 +10,10 @@ z <- -sign(t) * qnorm(p/2)
 X <- lim$coefficients[, 2]
 s <- X / z
 
+p53.dat <- p53[-which(abs(X / s) >= 4), ]
+
 gene.num <- length(X)
-gene.names <- rownames(p53)
+gene.names <- rownames(p53.dat)
 gene.set.all <- msigdb::read.gmt("~/GitHub/Bi-ASH/data/c2.symbols.gmt")
 gene.set.num <- length(gene.set.all$genesets)
 gene.set.size.original <- sapply(gene.set.all$genesets, length)
