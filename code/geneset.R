@@ -10,7 +10,7 @@ z <- -sign(t) * qnorm(p/2)
 X <- lim$coefficients[, 2]
 s <- X / z
 
-p53 <- p53[-which(abs(X / s) >= 4), ]
+# p53 <- p53[-which(abs(X / s) >= 4), ]
 
 gene.num <- length(X)
 gene.names <- rownames(p53)
