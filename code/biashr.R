@@ -94,6 +94,9 @@ biashr = function (x1, s1 = 1,
 
   theta.postmean <- colSums(apply(aperm(theta.postmean.array * theta.postweight.array, c(2, 1, 3)) * pi.hat, 2, colSums) * omega.hat)
   
+  theta.postsd <- colSums(apply(aperm((theta.postmean.array^2 + theta.postsd.array^2) * theta.postweight.array, c(2, 1, 3)) * pi.hat, 2, colSums) * omega.hat)
+  - theta.postmean^2
+  
   if (pi.at.0) {
     theta.lfdr <- pi.hat[1] * colSums(t(dnorm(x1, 0, sqrt(outer(s1^2, sd2^2, FUN = "+")))) * omega.hat)/ colSums(apply(aperm(mlik.array, c(2, 1, 3)) * pi.hat, 2, colSums) * omega.hat)
   } else {
@@ -113,6 +116,7 @@ biashr = function (x1, s1 = 1,
                  converged = converged,
                  niter = niter,
                  theta.postmean = theta.postmean,
+                 theta.postsd = theta.postsd,
                  theta.lfdr = theta.lfdr,
                  theta.qvalue = theta.qvalue,
                  theta.lfsr = theta.lfsr,

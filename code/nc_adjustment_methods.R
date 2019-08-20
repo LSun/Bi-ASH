@@ -61,7 +61,26 @@ ruvb_bfa_gs_linked_se <- function(Y, X, control_genes, num_sv) {
 }
 
 
-
+## biashr method
+biashr_nc <- function (Y, X, control_genes) {
+  dgecounts = edgeR::calcNormFactors(edgeR::DGEList(counts = t(Y), group = X[, 2]))
+  v = limma::voom(dgecounts, X, plot = FALSE)
+  lim = limma::lmFit(v)
+  r.ebayes = limma::eBayes(lim)
+  p = r.ebayes$p.value[, 2]
+  t = r.ebayes$t[, 2]
+  z = -sign(t) * qnorm(p / 2)
+  X = lim$coefficients[, 2]
+  s = X / z
+  x1 <- X[!control_genes]
+  s1 <- s[!control_genes]
+  x2 <- X[control_genes]
+  s2 <- s[control_genes]
+  fit.biashr <- biashr(x1, s1, x2, s2)
+  X[!control_genes] <- fit.biashr$theta.postmean
+  s[!control_genes] <- fit.biashr$theta.postsd
+  return(list(betahat = X, sebetahat = s, df = Inf, lfsr = fit.biashr$theta.lfsr))
+}
 
 ## Methods to look at ---------------------------------------------------
 cate_simp_nc_correction <- function(Y, X, num_sv, control_genes) {
