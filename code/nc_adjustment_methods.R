@@ -60,6 +60,25 @@ ruvb_bfa_gs_linked_se <- function(Y, X, control_genes, num_sv) {
               upper = ruvbout$upper))
 }
 
+## ashr method
+ashr_nc <- function (Y, X, control_genes) {
+  dgecounts = edgeR::calcNormFactors(edgeR::DGEList(counts = t(Y), group = X[, 2]))
+  v = limma::voom(dgecounts, X, plot = FALSE)
+  lim = limma::lmFit(v)
+  r.ebayes = limma::eBayes(lim)
+  t = r.ebayes$t[, 2]
+  x = r.ebayes$coefficients[, 2]
+  s = x / t
+  df = r.ebayes$df.total
+  x1 <- x[!control_genes]
+  s1 <- s[!control_genes]
+  fit.ashr <- ashr::ash(x1, s1, df = mean(df))
+  x[!control_genes] <- ashr::get_pm(fit.ashr)
+  s[!control_genes] <- ashr::get_psd(fit.ashr)
+  lfsr <- x
+  lfsr[!control_genes] <- ashr::get_lfsr(fit.ashr)
+  return(list(betahat = x, sebetahat = s, df = df, lfsr = lfsr))
+}
 
 ## biashr method
 biashr_nc <- function (Y, X, control_genes) {
@@ -70,16 +89,18 @@ biashr_nc <- function (Y, X, control_genes) {
   p = r.ebayes$p.value[, 2]
   t = r.ebayes$t[, 2]
   z = -sign(t) * qnorm(p / 2)
-  X = lim$coefficients[, 2]
-  s = X / z
-  x1 <- X[!control_genes]
+  x = lim$coefficients[, 2]
+  s = x / z
+  x1 <- x[!control_genes]
   s1 <- s[!control_genes]
-  x2 <- X[control_genes]
+  x2 <- x[control_genes]
   s2 <- s[control_genes]
   fit.biashr <- biashr(x1, s1, x2, s2)
-  X[!control_genes] <- fit.biashr$theta.postmean
+  x[!control_genes] <- fit.biashr$theta.postmean
   s[!control_genes] <- fit.biashr$theta.postsd
-  return(list(betahat = X, sebetahat = s, df = Inf, lfsr = fit.biashr$theta.lfsr))
+  lfsr <- x
+  lfsr[!control_genes] <- fit.biashr$theta.lfsr
+  return(list(betahat = x, sebetahat = s, df = Inf, lfsr = lfsr))
 }
 
 ## Methods to look at ---------------------------------------------------

@@ -12,7 +12,6 @@ one_rep <- function(new_params, current_params) {
   ## Choose all of the genes because already got top expressed
   stopifnot(args_val$Ngene == ncol(args_val$mat))
 
-
   d_out <- seqgendiff::poisthin(mat = args_val$mat,
                                 nsamp = args_val$Nsamp,
                                 ngene = args_val$Ngene,
@@ -20,23 +19,19 @@ one_rep <- function(new_params, current_params) {
                                 signal_params = list(mean = 0, sd = args_val$log2foldsd),
                                 gvec = rep(TRUE, args_val$Ngene),
                                 gselect = "custom",
-                                prop_null = args_val$nullpi,
-                                group_assign = "frac")
-  X <- d_out$X
+                                prop_null = args_val$nullpi * (args_val$Ngene - args_val$ncontrols) / args_val$Ngene)
 
   which_null <- abs(d_out$beta) < 10 ^ -6
   nnull         <- sum(which_null)
-
-  control_genes <- rep(FALSE, length = args_val$Ngene)
-
-  control_genes[which_null][sample(1:nnull, size = round(args_val$ncontrols * args_val$prop_cont))] <- TRUE
-  control_genes[!which_null][sample(1:(args_val$Ngene - nnull), size = round(args_val$ncontrols * (1 - args_val$prop_cont)))] <- TRUE
+  control_genes <- which_null
+  control_genes[control_genes][sample(1:nnull, size = nnull - args_val$ncontrols)] <- FALSE
 
   stopifnot(sum(control_genes) == args_val$ncontrols)
   stopifnot(sum(control_genes & !which_null) == round((1 - args_val$prop_cont) * args_val$ncontrols))
 
   beta_true <- d_out$beta
 
+  X <- d_out$X
   colnames(X) <- c("Intercept", "Treatment")
   Y <- log2(d_out$Y + 1)
 
@@ -126,19 +121,17 @@ one_rep <- function(new_params, current_params) {
   ## Normal approximation version of RUVB --------------------------------
   # method_list$ruvbnn   <- method_list$ruvbn
   # method_list$ruvbnn$df <- Inf
+  
+  ## ashr  -------------------------------------------------------------------
+  # method_list$ashr <- ashr_nc(Y = d_out$Y, X = X, control_genes = control_genes)
 
-  ## biashr
-  method_list$biashr <- biashr_nc(Y = Y, X = X,
-                                  control_genes = control_genes)
+  ## biashr -------------------------------------------------------------------
+  method_list$biashr <- biashr_nc(Y = d_out$Y, X = X, control_genes = control_genes)
   
   ## Get CI's and p-values ----------------------------------------------------
   pci_list <- lapply(X = method_list, FUN = calc_ci_p)
-
-  ## sample version of RUVB ---------------------------------------------------
-  # pci_list$ruvb <- list(betahat = method_list$ruvbn$betahat, pvalues = pci_list$ruvbn$pvalues,
-  #                       lower = method_list$ruvbn$lower, upper = method_list$ruvbn$upper)
-  
-  ## biashr
+  # pci_list$ashr <- list(betahat = method_list$ashr$betahat, pvalues = method_list$ashr$lfsr,
+  #                       lower = pci_list$ashr$lower, upper = pci_list$ashr$upper)
   pci_list$biashr <- list(betahat = method_list$biashr$betahat, pvalues = method_list$biashr$lfsr,
                           lower = pci_list$biashr$lower, upper = pci_list$biashr$upper)
 
@@ -196,7 +189,6 @@ prop_control <- c(1)
 par_vals <- expand.grid(current_seed = (1 + seed_start):(itermax + seed_start),
                         nullpi       = nullpi_seq,
                         Nsamp        = Nsamp_seq,
-                        ncontrols    = ncontrol_seq,
                         prop_cont    = prop_control)
 par_vals$poisthin <- TRUE
 par_vals$poisthin[abs(par_vals$nullpi - 1) < 10 ^ -10] <- FALSE
@@ -204,7 +196,7 @@ par_vals$poisthin[abs(par_vals$nullpi - 1) < 10 ^ -10] <- FALSE
 ## Re order par_vals to get even computation time on all notes
 par_vals <- par_vals[sample(seq_len(nrow(par_vals))), ]
 
-library(tidyverse)
+suppressPackageStartupMessages(library(tidyverse))
 par_list <- list()
 for (list_index in 1:nrow(par_vals)) {
     par_list[[list_index]] <- list()
@@ -217,7 +209,8 @@ for (list_index in 1:nrow(par_vals)) {
 ## these do not change
 args_val              <- list()
 args_val$log2foldsd   <- 0.8
-args_val$Ngene        <- 1000
+args_val$ncontrols    <- 100
+args_val$Ngene        <- 1000 + args_val$ncontrols
 args_val$log2foldmean <- 0
 args_val$skip_gene    <- 0
 
@@ -231,7 +224,7 @@ rm(mat)
 ## try-catch
 safe_one_rep <- safely(one_rep)
 
-# oout <- safe_one_rep(par_list[[219]], args_val)
+# oout <- safe_one_rep(par_list[[1000]], args_val)
 # oout
 
 ## ## If on your own computer, use this
@@ -242,4 +235,3 @@ sout <- t(snow::parSapply(cl = cl, par_list, FUN = one_rep, current_params = arg
 stopCluster(cl)
 
 saveRDS(object = sout, file = "~/GitHub/Bi-ASH/output/nc_sims.rds")
-
