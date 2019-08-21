@@ -4,22 +4,19 @@
 #######
 
 one_rep <- function(new_params, current_params) {
-  source("~/GitHub/Bi-ASH/code/biashr.R")
-  source("~/GitHub/Bi-ASH/code/nc_adjustment_methods.R")
+  source("biashr.R")
+  source("nc_adjustment_methods.R")
   args_val <- append(current_params, new_params)
   set.seed(new_params$current_seed)
 
-  ## Choose all of the genes because already got top expressed
-  stopifnot(args_val$Ngene == ncol(args_val$mat))
-
   d_out <- seqgendiff::poisthin(mat = args_val$mat,
                                 nsamp = args_val$Nsamp,
-                                ngene = args_val$Ngene,
+                                ngene = args_val$Ngene + args_val$ncontrols,
                                 skip_gene = args_val$skip_gene,
                                 signal_params = list(mean = 0, sd = args_val$log2foldsd),
-                                gvec = rep(TRUE, args_val$Ngene),
-                                gselect = "custom",
-                                prop_null = args_val$nullpi * (args_val$Ngene - args_val$ncontrols) / args_val$Ngene)
+                                gselect = "random",
+                                prop_null = (args_val$nullpi * args_val$Ngene + args_val$ncontrols) / (args_val$Ngene + args_val$ncontrols)
+                                )
 
   which_null <- abs(d_out$beta) < 10 ^ -6
   nnull         <- sum(which_null)
@@ -177,7 +174,7 @@ one_rep <- function(new_params, current_params) {
   return(return_vec)
 }
 
-itermax <- 500 ## itermax should be 500
+itermax <- 50 ## itermax should be 500
 seed_start <- 777
 
 ## these change
@@ -189,6 +186,7 @@ prop_control <- c(1)
 par_vals <- expand.grid(current_seed = (1 + seed_start):(itermax + seed_start),
                         nullpi       = nullpi_seq,
                         Nsamp        = Nsamp_seq,
+                        ncontrols    = ncontrol_seq,
                         prop_cont    = prop_control)
 par_vals$poisthin <- TRUE
 par_vals$poisthin[abs(par_vals$nullpi - 1) < 10 ^ -10] <- FALSE
@@ -209,16 +207,14 @@ for (list_index in 1:nrow(par_vals)) {
 ## these do not change
 args_val              <- list()
 args_val$log2foldsd   <- 0.8
-args_val$ncontrols    <- 100
-args_val$Ngene        <- 1000 + args_val$ncontrols
+args_val$Ntotal       <- 1e4
+args_val$Ngene        <- 1000
 args_val$log2foldmean <- 0
 args_val$skip_gene    <- 0
 
 ## Create muscle_mat with most expressed genes
-# mat <- t(as.matrix(read.csv("./Output/gtex_tissue_gene_reads_v6p/muscle.csv",
-#                             header = TRUE)[, -c(1,2)]))
 mat <- t(as.matrix(readRDS("~/GitHub/Bi-ASH/data/muscle.rds")))
-args_val$mat <- mat[, order(apply(mat, 2, median), decreasing = TRUE)[1:args_val$Ngene]]
+args_val$mat <- mat[, order(apply(mat, 2, median), decreasing = TRUE)[1:args_val$Ntotal]]
 rm(mat)
 
 ## try-catch
