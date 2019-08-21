@@ -65,8 +65,7 @@ one_rep <- function(new_params, current_params) {
   # method_list$ruv2_lc <- ctl_adjust(method_list$ruv2_l, control_genes = control_genes)
 
   ## RUV3 --------------------------------------------------------------------
-  method_list$ruv3  <- ruv3_simp(Y = Y, X = X, num_sv = num_sv,
-                                 control_genes = control_genes)
+  method_list$ruv3  <- ruv3_simp(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$ruv3_m  <- mad_adjust(method_list$ruv3_o)
   # method_list$ruv3_c  <- ruv3_ctl_adjust(Y = Y, X = X, num_sv = num_sv,
   #                                        control_genes = control_genes)
@@ -174,11 +173,11 @@ one_rep <- function(new_params, current_params) {
   return(return_vec)
 }
 
-itermax <- 50 ## itermax should be 500
+itermax <- 5 ## itermax should be 500
 seed_start <- 777
 
 ## these change
-nullpi_seq   <- c(0.5, 0.9, 0.99)
+nullpi_seq   <- c(0.1, 0.5, 0.9)
 Nsamp_seq    <- c(10)
 ncontrol_seq <- c(100)
 prop_control <- c(1)
@@ -213,7 +212,7 @@ args_val$log2foldmean <- 0
 args_val$skip_gene    <- 0
 
 ## Create muscle_mat with most expressed genes
-mat <- t(as.matrix(readRDS("~/GitHub/Bi-ASH/data/muscle.rds")))
+mat <- t(as.matrix(readRDS("../data/muscle.rds")))
 args_val$mat <- mat[, order(apply(mat, 2, median), decreasing = TRUE)[1:args_val$Ntotal]]
 rm(mat)
 
@@ -230,4 +229,4 @@ cl <- makeCluster(detectCores() - 1)
 sout <- t(snow::parSapply(cl = cl, par_list, FUN = one_rep, current_params = args_val))
 stopCluster(cl)
 
-saveRDS(object = sout, file = "~/GitHub/Bi-ASH/output/nc_sims.rds")
+saveRDS(object = sout, file = "../output/nc_sims.rds")
