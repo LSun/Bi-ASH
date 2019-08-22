@@ -55,6 +55,9 @@ one_rep <- function(new_params, current_params) {
 # method_list$ols_lm <- mad_adjust(method_list$ols_l)
 # method_list$ols_lc <- ctl_adjust(method_list$ols_l, control_genes = control_genes)
 
+  ## limma ---------------------------------------------------------------------  
+  method_list$limma <- limma_simp(Y = d_out$Y, X = X)
+  
   ## RUV2 --------------------------------------------------------------------
   method_list$ruv2  <- ruv2_simp(Y = Y, X = X, num_sv = num_sv,
                                    control_genes = control_genes)

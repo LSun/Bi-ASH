@@ -39,9 +39,9 @@ ncmatdf %>%
 
 ncmatdf_long$nullpi <- paste0("pi[0] == ", ncmatdf_long$nullpi)
 ncmatdf_long$metric <- factor(ncmatdf_long$metric, levels = c("MSE", "AUC"))
-ncmatdf_long$method <- factor(ncmatdf_long$method, levels = c("ols", "ruv2", "ruv3", "cate", "ashr", "biashr"))
+ncmatdf_long$method <- factor(ncmatdf_long$method, levels = c("ols", "limma", "ruv2", "ruv3", "cate", "ashr", "biashr"))
 
-plot.nc.sim <- ggplot(ncmatdf_long[ncmatdf_long$method != "ashr", ], aes(x = method, y = value, group = method)) +
+plot.nc.sim <- ggplot(ncmatdf_long, aes(x = method, y = value, group = method)) +
   geom_boxplot(aes(fill = method)) +
   facet_grid(metric ~ nullpi, scale = "free_y", labeller = label_parsed) +
   theme(

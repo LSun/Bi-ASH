@@ -32,6 +32,19 @@ ols <- function(Y, X, quant = 0.95) {
   return(list(betahat = betahat, sebetahat = sebetahat, df = df))
 }
 
+## Basic limma -----------------------------------------------------------------
+limma_simp <- function (Y, X) {
+  dgecounts = edgeR::calcNormFactors(edgeR::DGEList(counts = t(Y), group = X[, 2]))
+  v = limma::voom(dgecounts, X, plot = FALSE)
+  lim = limma::lmFit(v)
+  r.ebayes = limma::eBayes(lim)
+  t = r.ebayes$t[, 2]
+  x = r.ebayes$coefficients[, 2]
+  s = x / t
+  df = r.ebayes$df.total
+  return(list(betahat = x, sebetahat = s, df = df))
+}
+
 ## Specific version of RUVB I use -------------------------------------------
 ruvb_bfa_gs_linked <- function(Y, X, control_genes, num_sv) {
   ruvbout <- vicar::ruvb(Y = Y, X = X, ctl = control_genes, k = num_sv,
