@@ -4,8 +4,8 @@
 #######
 
 one_rep <- function(new_params, current_params) {
-  source("biashr.R")
-  source("nc_adjustment_methods.R")
+  source("~/GitHub/Bi-ASH/code/biashr.R")
+  source("~/GitHub/Bi-ASH/code/nc_adjustment_methods.R")
   args_val <- append(current_params, new_params)
   set.seed(new_params$current_seed)
 
@@ -119,7 +119,7 @@ one_rep <- function(new_params, current_params) {
   # method_list$ruvbnn$df <- Inf
   
   ## ashr  -------------------------------------------------------------------
-  # method_list$ashr <- ashr_nc(Y = d_out$Y, X = X, control_genes = control_genes)
+  method_list$ashr <- ashr_nc(Y = d_out$Y, X = X, control_genes = control_genes)
 
   ## biashr -------------------------------------------------------------------
   method_list$biashr <- biashr_nc(Y = d_out$Y, X = X, control_genes = control_genes)
@@ -173,7 +173,7 @@ one_rep <- function(new_params, current_params) {
   return(return_vec)
 }
 
-itermax <- 5 ## itermax should be 500
+itermax <- 500 ## itermax should be 500
 seed_start <- 777
 
 ## these change
@@ -212,7 +212,7 @@ args_val$log2foldmean <- 0
 args_val$skip_gene    <- 0
 
 ## Create muscle_mat with most expressed genes
-mat <- t(as.matrix(readRDS("../data/muscle.rds")))
+mat <- t(as.matrix(readRDS("~/GitHub/Bi-ASH/data/muscle.rds")))
 args_val$mat <- mat[, order(apply(mat, 2, median), decreasing = TRUE)[1:args_val$Ntotal]]
 rm(mat)
 
@@ -229,4 +229,4 @@ cl <- makeCluster(detectCores() - 1)
 sout <- t(snow::parSapply(cl = cl, par_list, FUN = one_rep, current_params = args_val))
 stopCluster(cl)
 
-saveRDS(object = sout, file = "../output/nc_sims.rds")
+saveRDS(object = sout, file = "~/GitHub/Bi-ASH/output/nc_sims.rds")
