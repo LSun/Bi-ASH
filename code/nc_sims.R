@@ -228,7 +228,7 @@ safe_one_rep <- safely(one_rep)
 ## ## If on your own computer, use this
 library(snow)
 library(parallel)
-cl <- makeCluster(detectCores() - 1)
+cl <- makeCluster(detectCores() - 0)
 sout <- t(snow::parSapply(cl = cl, par_list, FUN = one_rep, current_params = args_val))
 stopCluster(cl)
 
