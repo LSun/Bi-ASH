@@ -49,18 +49,18 @@ one_rep <- function(new_params, current_params) {
   
   ## OLS ---------------------------------------------------------------------
   method_list$ols  <- ols(Y = Y, X = X)
-# method_list$ols_m  <- mad_adjust(method_list$ols_o)
-# method_list$ols_c  <- ctl_adjust(method_list$ols_o, control_genes = control_genes)
-# method_list$ols_l  <- limma_adjust(method_list$ols_o)
-# method_list$ols_lm <- mad_adjust(method_list$ols_l)
-# method_list$ols_lc <- ctl_adjust(method_list$ols_l, control_genes = control_genes)
+  # method_list$ols_m  <- mad_adjust(method_list$ols_o)
+  # method_list$ols_c  <- ctl_adjust(method_list$ols_o, control_genes = control_genes)
+  # method_list$ols_l  <- limma_adjust(method_list$ols_o)
+  # method_list$ols_lm <- mad_adjust(method_list$ols_l)
+  # method_list$ols_lc <- ctl_adjust(method_list$ols_l, control_genes = control_genes)
 
   ## limma ---------------------------------------------------------------------  
   method_list$limma <- limma_simp(Y = d_out$Y, X = X)
   
   ## RUV2 --------------------------------------------------------------------
-  method_list$ruv2  <- ruv2_simp(Y = Y, X = X, num_sv = num_sv,
-                                   control_genes = control_genes)
+  method_list$ruv2 <- limma_adjust(ruv2_simp(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes))
+  # method_list$ruv2_o  <- ruv2_simp(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$ruv2_m  <- mad_adjust(method_list$ruv2_o)
   # method_list$ruv2_c  <- ctl_adjust(method_list$ruv2_o, control_genes = control_genes)
   # method_list$ruv2_l  <- limma_adjust(method_list$ruv2_o)
@@ -68,24 +68,19 @@ one_rep <- function(new_params, current_params) {
   # method_list$ruv2_lc <- ctl_adjust(method_list$ruv2_l, control_genes = control_genes)
 
   ## RUV3 --------------------------------------------------------------------
-  method_list$ruv3  <- ruv3_simp(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
+  method_list$ruv3 <- ruv3_limma_post(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
+  # method_list$ruv3_o  <- ruv3_simp(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$ruv3_m  <- mad_adjust(method_list$ruv3_o)
-  # method_list$ruv3_c  <- ruv3_ctl_adjust(Y = Y, X = X, num_sv = num_sv,
-  #                                        control_genes = control_genes)
-  # method_list$ruv3_lb <- ruv3_limma_pre(Y = Y, X = X, num_sv = num_sv,
-  #                                       control_genes = control_genes)
+  # method_list$ruv3_c  <- ruv3_ctl_adjust(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
+  # method_list$ruv3_lb <- ruv3_limma_pre(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$ruv3_lbm <- mad_adjust(method_list$ruv3_lb)
-  # method_list$ruv3_lbc <- ruv3_limma_pre_adjust(Y = Y, X = X, num_sv = num_sv,
-  #                                               control_genes = control_genes)
-  # method_list$ruv3_la  <- ruv3_limma_post(Y = Y, X = X, num_sv = num_sv,
-  #                                         control_genes = control_genes)
+  # method_list$ruv3_lbc <- ruv3_limma_pre_adjust(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
+  # method_list$ruv3_la  <- ruv3_limma_post(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$ruv3_lam <- mad_adjust(method_list$ruv3_la)
-  # method_list$ruv3_lac <- ruv3_limma_post_adjust(Y = Y, X = X, num_sv = num_sv,
-  #                                                control_genes = control_genes)
+  # method_list$ruv3_lac <- ruv3_limma_post_adjust(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
 
   ## RUV4 (not CATE) ---------------------------------------------------------
-  # method_list$ruv4_o  <- ruv4_simp(Y = Y, X = X, num_sv = num_sv,
-  #                                  control_genes = control_genes)
+  # method_list$ruv4_o  <- ruv4_simp(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$ruv4_m  <- mad_adjust(method_list$ruv4_o)
   # method_list$ruv4_c  <- ctl_adjust(method_list$ruv4_o, control_genes = control_genes)
   # method_list$ruv4_l  <- limma_adjust(method_list$ruv4_o)
@@ -93,19 +88,17 @@ one_rep <- function(new_params, current_params) {
   # method_list$ruv4_lc <- ctl_adjust(method_list$ruv4_l, control_genes = control_genes)
 
   ## CATE -------------------------------------------------------------------
-  # method_list$cate_o   <- cate_simp(Y = Y, X = X, num_sv = num_sv,
-  #                                   control_genes = control_genes)
+  method_list$cate  <- limma_adjust(cate_simp_nc_correction(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes))
+  # method_list$cate_o   <- cate_simp(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$cate_m   <- mad_adjust(method_list$cate_o)
   # method_list$cate_c   <- ctl_adjust(method_list$cate_o, control_genes = control_genes)
-  # method_list$cate_lb  <- cate_limma(Y = Y, X = X, num_sv = num_sv,
-  #                                    control_genes = control_genes)
+  # method_list$cate_lb  <- cate_limma(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$cate_lbm <- mad_adjust(method_list$cate_lb)
   # method_list$cate_lbc <- ctl_adjust(method_list$cate_lb, control_genes = control_genes)
   # method_list$cate_la  <- limma_adjust(method_list$cate_o)
   # method_list$cate_lam <- mad_adjust(method_list$cate_la)
   # method_list$cate_lac <- ctl_adjust(method_list$cate_la, control_genes = control_genes)
-  method_list$cate   <- cate_simp_nc_correction(Y = Y, X = X, num_sv = num_sv,
-                                                  control_genes = control_genes)
+  # method_list$cate_d   <- cate_simp_nc_correction(Y = Y, X = X, num_sv = num_sv, control_genes = control_genes)
   # method_list$cate_dm  <- mad_adjust(method_list$cate_d)
   # method_list$cate_dc  <- ctl_adjust(method_list$cate_d, control_genes = control_genes)
   # method_list$cate_dl  <- limma_adjust(method_list$cate_d)
@@ -129,8 +122,8 @@ one_rep <- function(new_params, current_params) {
   
   ## Get CI's and p-values ----------------------------------------------------
   pci_list <- lapply(X = method_list, FUN = calc_ci_p)
-  # pci_list$ashr <- list(betahat = method_list$ashr$betahat, pvalues = method_list$ashr$lfsr,
-  #                       lower = pci_list$ashr$lower, upper = pci_list$ashr$upper)
+  pci_list$ashr <- list(betahat = method_list$ashr$betahat, pvalues = method_list$ashr$lfsr,
+                        lower = pci_list$ashr$lower, upper = pci_list$ashr$upper)
   pci_list$biashr <- list(betahat = method_list$biashr$betahat, pvalues = method_list$biashr$lfsr,
                           lower = pci_list$biashr$lower, upper = pci_list$biashr$upper)
 
@@ -228,7 +221,7 @@ safe_one_rep <- safely(one_rep)
 ## ## If on your own computer, use this
 library(snow)
 library(parallel)
-cl <- makeCluster(detectCores() - 0)
+cl <- makeCluster(detectCores() - 1)
 sout <- t(snow::parSapply(cl = cl, par_list, FUN = one_rep, current_params = args_val))
 stopCluster(cl)
 
