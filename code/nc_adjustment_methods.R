@@ -93,6 +93,21 @@ ashr_nc <- function (Y, X, control_genes) {
   return(list(betahat = x, sebetahat = s, df = df, lfsr = lfsr))
 }
 
+ashr_o <- function (Y = Y, X = X, control_genes = control_genes) {
+  fit.ols <- ols(Y = Y, X = X)
+  x <- fit.ols$betahat
+  s <- fit.ols$sebetahat
+  df <- fit.ols$df
+  x1 <- x[!control_genes]
+  s1 <- s[!control_genes]
+  fit.ashr <- ashr::ash(x1, s1, df = df)
+  x[!control_genes] <- ashr::get_pm(fit.ashr)
+  s[!control_genes] <- ashr::get_psd(fit.ashr)
+  lfsr <- x
+  lfsr[!control_genes] <- ashr::get_lfsr(fit.ashr)
+  return(list(betahat = x, sebetahat = s, df = df, lfsr = lfsr))
+}
+
 ## biashr method
 biashr_nc <- function (Y, X, control_genes) {
   dgecounts = edgeR::calcNormFactors(edgeR::DGEList(counts = t(Y), group = X[, 2]))
@@ -104,6 +119,26 @@ biashr_nc <- function (Y, X, control_genes) {
   z = -sign(t) * qnorm(p / 2)
   x = lim$coefficients[, 2]
   s = x / z
+  x1 <- x[!control_genes]
+  s1 <- s[!control_genes]
+  x2 <- x[control_genes]
+  s2 <- s[control_genes]
+  fit.biashr <- biashr(x1, s1, x2, s2)
+  x[!control_genes] <- fit.biashr$theta.postmean
+  s[!control_genes] <- fit.biashr$theta.postsd
+  lfsr <- x
+  lfsr[!control_genes] <- fit.biashr$theta.lfsr
+  return(list(betahat = x, sebetahat = s, df = Inf, lfsr = lfsr))
+}
+
+biashr_o <- function (Y = Y, X = X, control_genes = control_genes) {
+  fit.ols <- ols(Y = Y, X = X)
+  x <- fit.ols$betahat
+  s <- fit.ols$sebetahat
+  df <- fit.ols$df
+  p <- pt(-abs(x / s), df = df) * 2
+  z <- -sign(x) * qnorm(p / 2)
+  s <- x / z
   x1 <- x[!control_genes]
   s1 <- s[!control_genes]
   x2 <- x[control_genes]

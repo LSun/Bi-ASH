@@ -116,17 +116,19 @@ one_rep <- function(new_params, current_params) {
   
   ## ashr  -------------------------------------------------------------------
   method_list$ashr <- ashr_nc(Y = d_out$Y, X = X, control_genes = control_genes)
+  # method_list$ashro <- ashr_o(Y = Y, X = X, control_genes = control_genes)
 
   ## biashr -------------------------------------------------------------------
   method_list$biashr <- biashr_nc(Y = d_out$Y, X = X, control_genes = control_genes)
+  # method_list$biashro <- biashr_o(Y = Y, X = X, control_genes = control_genes)
   
   ## Get CI's and p-values ----------------------------------------------------
   pci_list <- lapply(X = method_list, FUN = calc_ci_p)
-  pci_list$ashr <- list(betahat = method_list$ashr$betahat, pvalues = method_list$ashr$lfsr,
-                        lower = pci_list$ashr$lower, upper = pci_list$ashr$upper)
-  pci_list$biashr <- list(betahat = method_list$biashr$betahat, pvalues = method_list$biashr$lfsr,
-                          lower = pci_list$biashr$lower, upper = pci_list$biashr$upper)
-
+  pci_list$ashr <- list(betahat = method_list$ashr$betahat, pvalues = method_list$ashr$lfsr, lower = pci_list$ashr$lower, upper = pci_list$ashr$upper)
+  pci_list$biashr <- list(betahat = method_list$biashr$betahat, pvalues = method_list$biashr$lfsr, lower = pci_list$biashr$lower, upper = pci_list$biashr$upper)
+  # pci_list$ashro <- list(betahat = method_list$ashro$betahat, pvalues = method_list$ashro$lfsr, lower = pci_list$ashro$lower, upper = pci_list$ashro$upper)
+  # pci_list$biashro <- list(betahat = method_list$biashro$betahat, pvalues = method_list$biashro$lfsr, lower = pci_list$biashro$lower, upper = pci_list$biashro$upper)
+  
   ## Get summary quantities --------------------------------------------------
   get_mse <- function(args, beta_true, control_genes) {
     mean((args$betahat[!control_genes] - beta_true[!control_genes]) ^ 2)
@@ -169,7 +171,7 @@ one_rep <- function(new_params, current_params) {
   return(return_vec)
 }
 
-itermax <- 500 ## itermax should be 500
+itermax <- 1000 ## itermax should be 500
 seed_start <- 777
 
 ## these change

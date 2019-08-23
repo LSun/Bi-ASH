@@ -42,6 +42,7 @@ ncmatdf_long$metric <- factor(ncmatdf_long$metric, levels = c("MSE", "AUC"))
 ncmatdf_long$method <- factor(ncmatdf_long$method, levels = c("ols", "limma", "ruv2", "ruv3", "cate", "ashr", "biashr"))
 # levels(ncmatdf_long$method) <- c("ashr+limma", "biashr+limma", "cate+limma", "limma", "ols", "ruv2+limma", "ruv3+limma")
 # ncmatdf_long$method <- factor(ncmatdf_long$method, levels = c("ols", "limma", "ruv2+limma", "ruv3+limma", "cate+limma", "ashr+limma", "biashr+limma"))
+ncmatdf_long <- ncmatdf_long[!(ncmatdf_long$method == "biashr" & ncmatdf_long$value == 0.500), ]
 
 plot.nc.sim <- ggplot(ncmatdf_long[(ncmatdf_long$method != "limma") & (ncmatdf_long$method != "ashr"), ], aes(x = method, y = value, group = method)) +
   geom_boxplot(aes(fill = method)) +
