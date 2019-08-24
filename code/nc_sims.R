@@ -175,11 +175,11 @@ one_rep <- function(new_params, current_params) {
   return(return_vec)
 }
 
-itermax <- 10 ## itermax should be 500
+itermax <- 1000 ## itermax should be 500
 seed_start <- 777
 
 ## these change
-nullpi_seq   <- c(0.999)
+nullpi_seq   <- c(0.1, 0.5, 0.9)
 Nsamp_seq    <- c(10)
 ncontrol_seq <- c(100)
 prop_control <- c(1)
