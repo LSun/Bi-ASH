@@ -90,7 +90,8 @@ ashr_nc <- function (Y, X, control_genes) {
   s[!control_genes] <- ashr::get_psd(fit.ashr)
   lfsr <- x
   lfsr[!control_genes] <- ashr::get_lfsr(fit.ashr)
-  return(list(betahat = x, sebetahat = s, df = df, lfsr = lfsr))
+  g.pi0 <- ashr::get_pi0(fit.ashr)
+  return(list(betahat = x, sebetahat = s, df = df, lfsr = lfsr, g.pi0 = g.pi0))
 }
 
 ashr_o <- function (Y = Y, X = X, control_genes = control_genes) {
@@ -124,11 +125,12 @@ biashr_nc <- function (Y, X, control_genes) {
   x2 <- x[control_genes]
   s2 <- s[control_genes]
   fit.biashr <- biashr(x1, s1, x2, s2)
+  g.pi0 <- fit.biashr$g.fitted$pi[1]
   x[!control_genes] <- fit.biashr$theta.postmean
   s[!control_genes] <- fit.biashr$theta.postsd
   lfsr <- x
   lfsr[!control_genes] <- fit.biashr$theta.lfsr
-  return(list(betahat = x, sebetahat = s, df = Inf, lfsr = lfsr))
+  return(list(betahat = x, sebetahat = s, df = Inf, lfsr = lfsr, g.pi0 = g.pi0))
 }
 
 biashr_o <- function (Y = Y, X = X, control_genes = control_genes) {

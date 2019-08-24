@@ -167,15 +167,19 @@ one_rep <- function(new_params, current_params) {
                     poisthin = new_params$poisthin)
 
   return_vec <- c(par_settings, mse_vec, auc_vec)
+  
+  if (abs(method_list$ashr$g.pi0 - 1) < 1e-10) {return_vec[length(return_vec) - 1] = NA}
+  if (abs(method_list$biashr$g.pi0 - 1) < 1e-10) {return_vec[length(return_vec)] = NA}
+  
   xtot.time <- proc.time() - start.time
   return(return_vec)
 }
 
-itermax <- 1000 ## itermax should be 500
+itermax <- 10 ## itermax should be 500
 seed_start <- 777
 
 ## these change
-nullpi_seq   <- c(0.1, 0.5, 0.9)
+nullpi_seq   <- c(0.999)
 Nsamp_seq    <- c(10)
 ncontrol_seq <- c(100)
 prop_control <- c(1)
@@ -221,7 +225,7 @@ safe_one_rep <- safely(one_rep)
 # oout
 
 ## ## If on your own computer, use this
-library(snow)
+suppressPackageStartupMessages(library(snow))
 library(parallel)
 cl <- makeCluster(detectCores() - 1)
 sout <- t(snow::parSapply(cl = cl, par_list, FUN = one_rep, current_params = args_val))
