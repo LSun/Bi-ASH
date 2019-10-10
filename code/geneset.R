@@ -20,7 +20,7 @@ gene.set.size.original <- sapply(gene.set.all$genesets, length)
 names(gene.set.size.original) <- NULL
 gene.set.name <- gene.set.all$geneset.names
 
-gene.set.size <- pi0 <- loglikratio <- converged <- c()
+gene.set.size <- pi0 <- loglikratio <- avgloglikratio <- converged <- c()
 
 for (i in seq(gene.set.num)) {
   gene.set <- gene.set.all$genesets[[i]]
@@ -33,15 +33,17 @@ for (i in seq(gene.set.num)) {
   gene.set.size[i] <- length(gene.set.index)
   pi0[i] <- biashr.fit$g.fitted$pi[1]
   loglikratio[i] <- biashr.fit$loglikratio
+  avgloglikratio[i] <- biashr.fit$loglikratio / length(gene.set.index)
   converged[i] <- biashr.fit$converged
 }
 
-gene.set.order <- order(loglikratio, decreasing = TRUE)
+gene.set.order <- order(avgloglikratio, decreasing = TRUE)
 res <- cbind.data.frame(
   geneset = gene.set.name[gene.set.order],
   size = gene.set.size.original[gene.set.order],
   size.used = gene.set.size[gene.set.order],
   loglikratio = loglikratio[gene.set.order],
+  avgloglikratio = avgloglikratio[gene.set.order],
   pi0 = pi0[gene.set.order],
   converged = converged[gene.set.order]
 )
