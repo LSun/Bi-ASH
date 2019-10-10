@@ -29,7 +29,7 @@ for (i in seq(gene.set.num)) {
   s1 <- s[gene.set.index]
   x2 <- X[setdiff(seq(gene.num), gene.set.index)]
   s2 <- s[setdiff(seq(gene.num), gene.set.index)]
-  biashr.fit <- biashr(x1, s1, x2, s2)
+  biashr.fit <- biashr(x1, s1, x2, s2, omega.null.weight = 0)
   gene.set.size[i] <- length(gene.set.index)
   pi0[i] <- biashr.fit$g.fitted$pi[1]
   loglikratio[i] <- biashr.fit$loglikratio
@@ -47,3 +47,12 @@ res <- cbind.data.frame(
 )
 
 saveRDS(res, "~/GitHub/Bi-ASH/output/p53.res.rds")
+
+pdf("~/GitHub/Bi-ASH/output/genesetsize.pdf", width = 6, height = 4)
+hist(gene.set.size, breaks = 50, xlab = "number of genes in a gene set", main = "Histogram of gene set sizes")
+dev.off()
+
+pdf("~/GitHub/Bi-ASH/output/genesetranking.pdf", width = 5, height = 5)
+plot(res$loglikratio, ylab = "enrichment score", cex = 1.5)
+text(1 : 8, res$loglikratio[1 : 8], res$geneset[1 : 8], pos = 4, cex = 0.5)
+dev.off()
