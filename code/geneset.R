@@ -54,7 +54,10 @@ pdf("~/GitHub/Bi-ASH/output/genesetsize.pdf", width = 6, height = 4)
 hist(gene.set.size, breaks = 50, xlab = "number of genes in a gene set", main = "Histogram of gene set sizes")
 dev.off()
 
+topnumber <- 8
 pdf("~/GitHub/Bi-ASH/output/genesetranking.pdf", width = 5, height = 5)
-plot(res$loglikratio, ylab = "enrichment score", cex = 1.5)
-text(1 : 8, res$loglikratio[1 : 8], res$geneset[1 : 8], pos = 4, cex = 0.5)
+plot(res$avgloglikratio, ylab = "enrichment score", cex = 1.5,
+     pch = c(rep(10, topnumber), rep(1, 522 - topnumber)),
+     col = c(rep(2, topnumber), rep(1, 522 - topnumber)))
+text(1 : topnumber, res$avgloglikratio[1 : topnumber], res$geneset[1 : topnumber], pos = 4, cex = 0.5)
 dev.off()
