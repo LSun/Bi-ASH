@@ -10,7 +10,15 @@ z <- -sign(t) * qnorm(p/2)
 X <- lim$coefficients[, 2]
 s <- X / z
 
-# p53 <- p53[-which(abs(X / s) >= 4), ]
+p53 <- p53[-which(abs(X / s) >= 4), ]
+design <- model.matrix(~colnames(p53))
+lim <- limma::lmFit(p53, design)
+r.ebayes <- limma::eBayes(lim)
+p <- r.ebayes$p.value[, 2]
+t <- r.ebayes$t[, 2]
+z <- -sign(t) * qnorm(p/2)
+X <- lim$coefficients[, 2]
+s <- X / z
 
 gene.num <- length(X)
 gene.names <- rownames(p53)
@@ -48,9 +56,11 @@ res <- cbind.data.frame(
   converged = converged[gene.set.order]
 )
 
-saveRDS(res, "~/GitHub/Bi-ASH/output/p53.res.rds")
+saveRDS(list(res, gene.set.order), "~/GitHub/Bi-ASH/output/p53.res.rds")
 
-res <- readRDS("~/GitHub/Bi-ASH/output/p53.res.rds")
+res.list <- readRDS("~/GitHub/Bi-ASH/output/p53.res.rds")
+res <- res.list[[1]]
+gene.set.order <- res.list[[2]]
 
 pdf("~/GitHub/Bi-ASH/output/genesetsize.pdf", width = 6, height = 4)
 hist(gene.set.size, breaks = 50, xlab = "number of genes in a gene set", main = "Histogram of gene set sizes")
