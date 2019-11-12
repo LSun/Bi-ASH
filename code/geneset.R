@@ -104,10 +104,36 @@ gene.names <- names(z.plot)
 
 pdf("~/GitHub/Bi-ASH/output/genesetintro.pdf", width = 10, height = 5)
 par(mfrow = c(1, 2))
-hist(z.plot, prob = TRUE, xlab = "z-score", main = expression("Histogram of z-scores of all genes"))
-lines(seq(-4, 4, by = 0.1), dnorm(seq(-4, 4, by = 0.1)), col = "blue", lty= 2, lwd = 2)
-legend("topright", "N(0,1)", lty = 2, col = "blue", lwd = 2)
-hist(gene.set.size, breaks = 50, xlab = "number of genes in a gene set", main = expression(paste("Histogram of gene set sizes ", p[1])))
+pcol <- rep(1, length(z.plot))
+pcol[abs(z.plot) >= 5] <- "red"
+pch <- rep(1, length(z.plot))
+pch[abs(z.plot) >= 5] <- 19
+qqnorm(z.plot, main = "(a) Normal Q-Q Plot for all z-scores",
+       xlim = c(-4, 5.2),
+       ylim = c(-4, 5.2),
+       pch = pch,
+       col = pcol)
+abline(0, 1, lty = 2, lwd = 2, col = "blue")
+legend("topleft", col = "blue", lty = 2, lwd = 2, "The y = x line")
+text(x = -qnorm(mean(z.plot[which(z.plot >= 5)][1] <= z.plot)),
+     y = z.plot[which(z.plot >= 5)][1],
+     labels = names(z.plot[which(z.plot >= 5)][1]),
+     pos = 4,
+     col = "red",
+     cex = 0.75)
+text(x = -qnorm(mean(z.plot[which(z.plot >= 5)][2] <= z.plot)),
+     y = z.plot[which(z.plot >= 5)][2],
+     labels = names(z.plot[which(z.plot >= 5)][2]),
+     pos = 2,
+     col = "red",
+     cex = 0.75)
+# hist(z.plot, prob = TRUE, xlab = "z-score", main = expression("Histogram of z-scores of all genes"))
+# lines(seq(-4, 4, by = 0.1), dnorm(seq(-4, 4, by = 0.1)), col = "blue", lty= 2, lwd = 2)
+# legend("topright", "N(0,1)", lty = 2, col = "blue", lwd = 2)
+hist(res$size.used, breaks = 50, xlab = "Number of genes in a gene set",
+     # main = expression(paste("Histogram of gene set sizes ", p[1]))
+     main = "(b) Histogram of gene set sizes"
+     )
 dev.off()
 
 topnumber <- 10
